@@ -67,7 +67,7 @@ const Rooms: React.FC = () => {
         ...data,
         capacity: parseInt(data.capacity),
       });
-      return response.data;
+      return response.data.data || response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
@@ -83,7 +83,7 @@ const Rooms: React.FC = () => {
         ...data,
         capacity: parseInt(data.capacity),
       });
-      return response.data;
+      return response.data.data || response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
@@ -97,7 +97,7 @@ const Rooms: React.FC = () => {
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await api.delete(`/rooms/${id}`);
-      return response.data;
+      return response.data.data || response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });

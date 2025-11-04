@@ -33,7 +33,7 @@ export default function Students() {
     queryKey: ['students'],
     queryFn: async () => {
       const response = await api.get('/students')
-      return response.data
+      return response.data.data || response.data
     },
   })
 

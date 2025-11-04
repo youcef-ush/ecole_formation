@@ -10,7 +10,19 @@ const router = Router();
 router.use(authenticate);
 router.use(authorize(UserRole.ADMIN));
 
-// GET /api/time-slots - Récupérer tous les créneaux
+/**
+ * @swagger
+ * /api/time-slots:
+ *   get:
+ *     summary: Liste tous les créneaux horaires actifs
+ *     description: Retourne tous les créneaux triés par jour puis par heure de début
+ *     tags: [TimeSlots]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des créneaux horaires
+ */
 router.get('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const timeSlotRepo = AppDataSource.getRepository(TimeSlot);
@@ -28,7 +40,27 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
-// GET /api/time-slots/:id - Récupérer un créneau par ID
+/**
+ * @swagger
+ * /api/time-slots/{id}:
+ *   get:
+ *     summary: Récupère un créneau horaire par ID
+ *     tags: [TimeSlots]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID du créneau
+ *     responses:
+ *       200:
+ *         description: Détails du créneau
+ *       404:
+ *         description: Créneau non trouvé
+ */
 router.get('/:id', async (req: AuthRequest, res: Response, next) => {
   try {
     const timeSlotRepo = AppDataSource.getRepository(TimeSlot);
@@ -46,7 +78,46 @@ router.get('/:id', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
-// POST /api/time-slots - Créer un nouveau créneau
+/**
+ * @swagger
+ * /api/time-slots:
+ *   post:
+ *     summary: Créer un nouveau créneau horaire
+ *     tags: [TimeSlots]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - dayOfWeek
+ *               - startTime
+ *               - endTime
+ *             properties:
+ *               dayOfWeek:
+ *                 type: string
+ *                 enum: [Lundi, Mardi, Mercredi, Jeudi, Vendredi, Samedi, Dimanche]
+ *                 description: Jour de la semaine
+ *               startTime:
+ *                 type: string
+ *                 format: time
+ *                 description: Heure de début (HH:mm)
+ *               endTime:
+ *                 type: string
+ *                 format: time
+ *                 description: Heure de fin (HH:mm)
+ *               label:
+ *                 type: string
+ *                 description: Libellé du créneau (ex. Matin, Après-midi)
+ *     responses:
+ *       201:
+ *         description: Créneau créé avec succès
+ *       400:
+ *         description: Validation échouée ou créneau identique existe déjà
+ */
 router.post('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const timeSlotRepo = AppDataSource.getRepository(TimeSlot);
@@ -85,7 +156,46 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
-// PUT /api/time-slots/:id - Mettre à jour un créneau
+/**
+ * @swagger
+ * /api/time-slots/{id}:
+ *   put:
+ *     summary: Mettre à jour un créneau horaire
+ *     tags: [TimeSlots]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID du créneau
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               dayOfWeek:
+ *                 type: string
+ *                 enum: [Lundi, Mardi, Mercredi, Jeudi, Vendredi, Samedi, Dimanche]
+ *               startTime:
+ *                 type: string
+ *                 format: time
+ *               endTime:
+ *                 type: string
+ *                 format: time
+ *               label:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Créneau mis à jour
+ *       400:
+ *         description: Validation échouée
+ *       404:
+ *         description: Créneau non trouvé
+ */
 router.put('/:id', async (req: AuthRequest, res: Response, next) => {
   try {
     const timeSlotRepo = AppDataSource.getRepository(TimeSlot);
@@ -112,7 +222,28 @@ router.put('/:id', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
-// DELETE /api/time-slots/:id - Supprimer un créneau
+/**
+ * @swagger
+ * /api/time-slots/{id}:
+ *   delete:
+ *     summary: Supprimer un créneau horaire
+ *     description: Supprime définitivement un créneau
+ *     tags: [TimeSlots]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID du créneau
+ *     responses:
+ *       200:
+ *         description: Créneau supprimé avec succès
+ *       404:
+ *         description: Créneau non trouvé
+ */
 router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
   try {
     const timeSlotRepo = AppDataSource.getRepository(TimeSlot);

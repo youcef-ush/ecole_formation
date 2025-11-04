@@ -5,8 +5,13 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Session } from './Session.entity';
+import { Room } from './Room.entity';
+import { TimeSlot } from './TimeSlot.entity';
+import { Trainer } from './Trainer.entity';
 
 export enum CourseCategory {
   TUTORING = 'Soutien scolaire',
@@ -138,13 +143,35 @@ export class Course {
 
   // Champs spécifiques pour cours de soutien
   @Column({ type: 'varchar', nullable: true })
-  teacherName: string; // Nom de l'enseignant
+  teacherName: string; // Nom de l'enseignant - legacy
 
   @Column({ type: 'varchar', nullable: true })
-  room: string; // Salle (ex: "Salle 101", "Bloc A")
+  room: string; // Salle (ex: "Salle 101", "Bloc A") - legacy
 
   @Column({ type: 'varchar', nullable: true })
-  schedule: string; // Créneaux horaires (ex: "Lundi 14h-16h, Mercredi 10h-12h")
+  schedule: string; // Créneaux horaires (ex: "Lundi 14h-16h, Mercredi 10h-12h") - legacy
+
+  // Relations vers Trainer, Room et TimeSlot (nouvelles)
+  @ManyToOne(() => Trainer, { nullable: true, eager: true })
+  @JoinColumn({ name: 'trainerId' })
+  trainer: Trainer;
+
+  @Column({ nullable: true })
+  trainerId: number;
+
+  @ManyToOne(() => Room, { nullable: true, eager: true })
+  @JoinColumn({ name: 'roomId' })
+  roomEntity: Room;
+
+  @Column({ nullable: true })
+  roomId: number;
+
+  @ManyToOne(() => TimeSlot, { nullable: true, eager: true })
+  @JoinColumn({ name: 'timeSlotId' })
+  timeSlotEntity: TimeSlot;
+
+  @Column({ nullable: true })
+  timeSlotId: number;
 
   @Column({ type: 'simple-array', nullable: true })
   schoolLevels: string[]; // Niveaux scolaires acceptés

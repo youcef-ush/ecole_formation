@@ -73,7 +73,7 @@ const TimeSlots: React.FC = () => {
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const response = await api.post('/time-slots', data);
-      return response.data;
+      return response.data.data || response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timeslots'] });
@@ -89,7 +89,7 @@ const TimeSlots: React.FC = () => {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: typeof formData }) => {
       const response = await api.put(`/time-slots/${id}`, data);
-      return response.data;
+      return response.data.data || response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timeslots'] });
@@ -106,7 +106,7 @@ const TimeSlots: React.FC = () => {
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await api.delete(`/time-slots/${id}`);
-      return response.data;
+      return response.data.data || response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timeslots'] });

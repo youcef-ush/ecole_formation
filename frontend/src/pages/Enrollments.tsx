@@ -18,12 +18,32 @@ import api from '../services/api'
 
 interface Enrollment {
   id: number
-  student: { firstName: string; lastName: string }
-  session: { course: { title: string } }
-  enrollmentDate: string
-  status: 'pending' | 'paid' | 'cancelled'
-  totalAmount: number
-  paidAmount: number
+  status: string
+  notes?: string
+  enrolledAt: string
+  updatedAt: string
+  studentId: number
+  sessionId: number
+  student: {
+    id: number
+    firstName: string
+    lastName: string
+  }
+  session: {
+    id: number
+    startDate: string
+    endDate: string
+    course: {
+      id: number
+      title: string
+      price: number
+    }
+  }
+  payments?: Array<{
+    id: number
+    amount: number
+    paymentDate: string
+  }>
 }
 
 export default function Enrollments() {
@@ -31,17 +51,17 @@ export default function Enrollments() {
     queryKey: ['enrollments'],
     queryFn: async () => {
       const response = await api.get('/enrollments')
-      return response.data
+      return response.data.data || response.data
     },
   })
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending':
+      case 'En attente':
         return 'warning'
-      case 'paid':
+      case 'Payé':
         return 'success'
-      case 'cancelled':
+      case 'Annulé':
         return 'error'
       default:
         return 'default'
@@ -49,16 +69,17 @@ export default function Enrollments() {
   }
 
   const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'En attente'
-      case 'paid':
-        return 'Payé'
-      case 'cancelled':
-        return 'Annulé'
-      default:
-        return status
-    }
+    return status
+  }
+
+  // Calculer le montant total et payé
+  const getTotalAmount = (enrollment: Enrollment) => {
+    return enrollment.session?.course?.price || 0
+  }
+
+  const getPaidAmount = (enrollment: Enrollment) => {
+    if (!enrollment.payments || enrollment.payments.length === 0) return 0
+    return enrollment.payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
   }
 
   if (isLoading) {
@@ -106,12 +127,12 @@ export default function Enrollments() {
                   <TableCell>
                     {enrollment.student?.firstName} {enrollment.student?.lastName}
                   </TableCell>
-                  <TableCell>{enrollment.session?.course?.title}</TableCell>
+                  <TableCell>{enrollment.session?.course?.title || 'N/A'}</TableCell>
                   <TableCell>
-                    {new Date(enrollment.enrollmentDate).toLocaleDateString('fr-FR')}
+                    {new Date(enrollment.enrolledAt).toLocaleDateString('fr-FR')}
                   </TableCell>
-                  <TableCell>{enrollment.totalAmount.toLocaleString()} DA</TableCell>
-                  <TableCell>{enrollment.paidAmount.toLocaleString()} DA</TableCell>
+                  <TableCell>{getTotalAmount(enrollment).toLocaleString()} DA</TableCell>
+                  <TableCell>{getPaidAmount(enrollment).toLocaleString()} DA</TableCell>
                   <TableCell>
                     <Chip
                       label={getStatusLabel(enrollment.status)}

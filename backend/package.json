@@ -8,6 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed:admin": "ts-node src/seed-admin.ts",
+    "seed:data": "ts-node src/seed-data.ts",
+    "seed:all": "npm run seed:admin && npm run seed:data",
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:generate": "npm run typeorm -- migration:generate -d src/config/database.config.ts",
     "migration:run": "npm run typeorm -- migration:run -d src/config/database.config.ts",

@@ -91,7 +91,7 @@ const Finance: React.FC = () => {
   const validateMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await api.post(`/registrations/${id}/validate`);
-      return response.data;
+      return response.data.data || response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['registrations'] });
@@ -109,7 +109,7 @@ const Finance: React.FC = () => {
       const response = await api.post(`/registrations/${id}/reject`, {
         notes: 'Paiement refusé',
       });
-      return response.data;
+      return response.data.data || response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['registrations'] });

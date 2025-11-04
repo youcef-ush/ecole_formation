@@ -10,7 +10,19 @@ const router = Router();
 router.use(authenticate);
 router.use(authorize(UserRole.ADMIN));
 
-// GET /api/rooms - Récupérer toutes les salles
+/**
+ * @swagger
+ * /api/rooms:
+ *   get:
+ *     summary: Liste toutes les salles actives
+ *     description: Retourne toutes les salles triées par nom
+ *     tags: [Rooms]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des salles
+ */
 router.get('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const roomRepo = AppDataSource.getRepository(Room);
@@ -25,7 +37,28 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
-// GET /api/rooms/:id - Récupérer une salle par ID
+/**
+ * @swagger
+ * /api/rooms/{id}:
+ *   get:
+ *     summary: Récupère une salle par ID
+ *     description: Retourne les détails d'une salle avec ses sessions
+ *     tags: [Rooms]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la salle
+ *     responses:
+ *       200:
+ *         description: Détails de la salle
+ *       404:
+ *         description: Salle non trouvée
+ */
 router.get('/:id', async (req: AuthRequest, res: Response, next) => {
   try {
     const roomRepo = AppDataSource.getRepository(Room);
@@ -44,7 +77,44 @@ router.get('/:id', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
-// POST /api/rooms - Créer une nouvelle salle
+/**
+ * @swagger
+ * /api/rooms:
+ *   post:
+ *     summary: Créer une nouvelle salle
+ *     tags: [Rooms]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - type
+ *               - capacity
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nom unique de la salle
+ *               type:
+ *                 type: string
+ *                 enum: [Théorique, Pratique, Informatique, Atelier]
+ *                 description: Type de salle
+ *               capacity:
+ *                 type: integer
+ *                 description: Capacité de la salle (nombre de places)
+ *               description:
+ *                 type: string
+ *                 description: Description de la salle (optionnel)
+ *     responses:
+ *       201:
+ *         description: Salle créée avec succès
+ *       400:
+ *         description: Une salle avec ce nom existe déjà
+ */
 router.post('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const roomRepo = AppDataSource.getRepository(Room);
@@ -67,7 +137,44 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
-// PUT /api/rooms/:id - Mettre à jour une salle
+/**
+ * @swagger
+ * /api/rooms/{id}:
+ *   put:
+ *     summary: Mettre à jour une salle
+ *     tags: [Rooms]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la salle
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *                 enum: [Théorique, Pratique, Informatique, Atelier]
+ *               capacity:
+ *                 type: integer
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Salle mise à jour
+ *       400:
+ *         description: Une salle avec ce nom existe déjà
+ *       404:
+ *         description: Salle non trouvée
+ */
 router.put('/:id', async (req: AuthRequest, res: Response, next) => {
   try {
     const roomRepo = AppDataSource.getRepository(Room);
@@ -99,7 +206,30 @@ router.put('/:id', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
-// DELETE /api/rooms/:id - Supprimer une salle
+/**
+ * @swagger
+ * /api/rooms/{id}:
+ *   delete:
+ *     summary: Supprimer une salle
+ *     description: Marque une salle comme inactive. Impossible si des sessions actives l'utilisent.
+ *     tags: [Rooms]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la salle
+ *     responses:
+ *       200:
+ *         description: Salle supprimée (désactivée)
+ *       400:
+ *         description: Impossible de supprimer, salle utilisée par des sessions actives
+ *       404:
+ *         description: Salle non trouvée
+ */
 router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
   try {
     const roomRepo = AppDataSource.getRepository(Room);

@@ -37,6 +37,16 @@ interface Course {
   type: string;
 }
 
+interface Session {
+  id: number;
+  startDate: string;
+  endDate: string;
+  capacity: number;
+  location: string;
+  course: Course;
+  courseId: number;
+}
+
 interface Registration {
   id: number;
   firstName: string;
@@ -46,6 +56,7 @@ interface Registration {
   status: string;
   notes: string;
   course: Course;
+  session: Session;
   createdAt: string;
   validatedAt: string;
 }
@@ -61,6 +72,7 @@ const Registrations: React.FC = () => {
     email: '',
     phone: '',
     courseId: '',
+    sessionId: '',
     notes: '',
   });
 
@@ -85,11 +97,26 @@ const Registrations: React.FC = () => {
     },
   });
 
+  // Récupérer les sessions disponibles (filtrées par formation si sélectionnée)
+  const { data: sessions } = useQuery<Session[]>({
+    queryKey: ['sessions', formData.courseId],
+    queryFn: async () => {
+      const response = await api.get('/sessions');
+      return response.data.data;
+    },
+    enabled: openForm, // Charger uniquement quand le formulaire est ouvert
+  });
+
+  // Filtrer les sessions par formation sélectionnée
+  const filteredSessions = sessions?.filter(
+    (session) => !formData.courseId || session.courseId === parseInt(formData.courseId)
+  );
+
   // Créer une inscription
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const response = await api.post('/registrations', data);
-      return response.data;
+      return response.data.data || response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['registrations'] });
@@ -102,7 +129,7 @@ const Registrations: React.FC = () => {
   const validateMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await api.post(`/registrations/${id}/validate`);
-      return response.data;
+      return response.data.data || response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['registrations'] });
@@ -114,7 +141,7 @@ const Registrations: React.FC = () => {
   const rejectMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await api.post(`/registrations/${id}/reject`);
-      return response.data;
+      return response.data.data || response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['registrations'] });
@@ -125,7 +152,7 @@ const Registrations: React.FC = () => {
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await api.delete(`/registrations/${id}`);
-      return response.data;
+      return response.data.data || response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['registrations'] });
@@ -139,13 +166,14 @@ const Registrations: React.FC = () => {
       email: '',
       phone: '',
       courseId: '',
+      sessionId: '',
       notes: '',
     });
   };
 
   const handleSubmit = () => {
-    if (!formData.firstName || !formData.lastName || !formData.courseId) {
-      alert('Veuillez remplir tous les champs obligatoires');
+    if (!formData.firstName || !formData.lastName || !formData.courseId || !formData.sessionId) {
+      alert('Veuillez remplir tous les champs obligatoires (Nom, Prénom, Formation et Session)');
       return;
     }
     createMutation.mutate(formData);
@@ -236,6 +264,7 @@ const Registrations: React.FC = () => {
               <TableRow>
                 <TableCell>Nom et Prénom</TableCell>
                 <TableCell>Formation</TableCell>
+                <TableCell>Session</TableCell>
                 <TableCell>Contact</TableCell>
                 <TableCell>Date de demande</TableCell>
                 <TableCell>État</TableCell>
@@ -245,7 +274,7 @@ const Registrations: React.FC = () => {
             <TableBody>
               {registrations && registrations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
+                  <TableCell colSpan={7} align="center">
                     Aucune inscription
                   </TableCell>
                 </TableRow>
@@ -256,6 +285,20 @@ const Registrations: React.FC = () => {
                       <strong>{registration.firstName} {registration.lastName}</strong>
                     </TableCell>
                     <TableCell>{registration.course?.title || 'N/A'}</TableCell>
+                    <TableCell>
+                      {registration.session ? (
+                        <Box>
+                          <Typography variant="body2">
+                            📅 {new Date(registration.session.startDate).toLocaleDateString('fr-FR')}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            📍 {registration.session.location}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">Non spécifié</Typography>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Box>
                         <Typography variant="body2">{registration.email || 'N/A'}</Typography>
@@ -334,7 +377,9 @@ const Registrations: React.FC = () => {
         <DialogTitle>Nouvelle Inscription</DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2, mt: 1 }}>
-            L'inscription sera créée avec le statut "En attente de paiement"
+            📝 L'inscription sera créée avec le statut "En attente de paiement"
+            <br />
+            🎓 Après validation par Finance : Compte étudiant + Affectation à la session automatiques
           </Alert>
           <TextField
             fullWidth
@@ -370,7 +415,7 @@ const Registrations: React.FC = () => {
             fullWidth
             label="Formation *"
             value={formData.courseId}
-            onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
+            onChange={(e) => setFormData({ ...formData, courseId: e.target.value, sessionId: '' })}
             margin="normal"
           >
             {courses?.map((course) => (
@@ -378,6 +423,28 @@ const Registrations: React.FC = () => {
                 {course.title} ({course.type})
               </MenuItem>
             ))}
+          </TextField>
+          <TextField
+            select
+            fullWidth
+            label="Session *"
+            value={formData.sessionId}
+            onChange={(e) => setFormData({ ...formData, sessionId: e.target.value })}
+            margin="normal"
+            disabled={!formData.courseId}
+            helperText={!formData.courseId ? 'Veuillez d\'abord sélectionner une formation' : ''}
+          >
+            {filteredSessions?.length === 0 ? (
+              <MenuItem disabled>Aucune session disponible</MenuItem>
+            ) : (
+              filteredSessions?.map((session) => (
+                <MenuItem key={session.id} value={session.id}>
+                  📅 {new Date(session.startDate).toLocaleDateString('fr-FR')} - {new Date(session.endDate).toLocaleDateString('fr-FR')} | 
+                  📍 {session.location} | 
+                  👥 {session.capacity} places
+                </MenuItem>
+              ))
+            )}
           </TextField>
           <TextField
             fullWidth
@@ -412,6 +479,19 @@ const Registrations: React.FC = () => {
               <Typography variant="body1" sx={{ mb: 2 }}>
                 {selectedRegistration.course?.title}
               </Typography>
+
+              {selectedRegistration.session && (
+                <>
+                  <Typography variant="subtitle2" color="text.secondary">Session</Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    📅 Du {new Date(selectedRegistration.session.startDate).toLocaleDateString('fr-FR')} au {new Date(selectedRegistration.session.endDate).toLocaleDateString('fr-FR')}
+                    <br />
+                    📍 {selectedRegistration.session.location}
+                    <br />
+                    👥 {selectedRegistration.session.capacity} places
+                  </Typography>
+                </>
+              )}
 
               <Typography variant="subtitle2" color="text.secondary">Email</Typography>
               <Typography variant="body1" sx={{ mb: 2 }}>

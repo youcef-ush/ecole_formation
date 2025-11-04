@@ -31,7 +31,7 @@ export default function Trainers() {
     queryKey: ['trainers'],
     queryFn: async () => {
       const response = await api.get('/trainers')
-      return response.data
+      return response.data.data || response.data
     },
   })
 

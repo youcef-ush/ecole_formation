@@ -8,6 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Course } from './Course.entity';
+import { Session } from './Session.entity';
 
 export enum RegistrationStatus {
   PENDING_PAYMENT = 'En attente de paiement',
@@ -49,6 +50,14 @@ export class Registration {
 
   @Column()
   courseId: number;
+
+  // Lien vers la session choisie (nullable pour anciennes inscriptions)
+  @ManyToOne(() => Session, { eager: true, nullable: true })
+  @JoinColumn({ name: 'sessionId' })
+  session: Session;
+
+  @Column({ nullable: true })
+  sessionId: number;
 
   // Lien vers l'étudiant créé après validation (nullable)
   @Column({ nullable: true })

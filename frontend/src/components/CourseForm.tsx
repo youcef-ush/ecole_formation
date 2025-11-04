@@ -14,8 +14,31 @@ import {
   Typography,
   Alert,
 } from '@mui/material';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import api from '../services/api';
+
+interface Room {
+  id: number;
+  name: string;
+  type: string;
+  capacity: number;
+}
+
+interface TimeSlot {
+  id: number;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  label: string;
+}
+
+interface Trainer {
+  id: number;
+  firstName: string;
+  lastName: string;
+  specialty: string;
+  phone: string;
+}
 
 interface CourseFormProps {
   open: boolean;
@@ -88,6 +111,44 @@ const subjectModules = [
 export default function CourseForm({ open, onClose }: CourseFormProps) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [openTrainerDialog, setOpenTrainerDialog] = useState(false);
+  const [newTrainerData, setNewTrainerData] = useState({
+    firstName: '',
+    lastName: '',
+    specialty: '',
+    phone: '',
+    email: '',
+  });
+
+  // Récupérer les salles depuis la base de données
+  const { data: rooms } = useQuery<Room[]>({
+    queryKey: ['rooms'],
+    queryFn: async () => {
+      const response = await api.get('/rooms');
+      return response.data.data;
+    },
+    enabled: open, // Charger seulement quand le dialog est ouvert
+  });
+
+  // Récupérer les créneaux depuis la base de données
+  const { data: timeSlots } = useQuery<TimeSlot[]>({
+    queryKey: ['timeslots'],
+    queryFn: async () => {
+      const response = await api.get('/time-slots');
+      return response.data.data;
+    },
+    enabled: open, // Charger seulement quand le dialog est ouvert
+  });
+
+  // Récupérer les formateurs depuis la base de données
+  const { data: trainers } = useQuery<Trainer[]>({
+    queryKey: ['trainers'],
+    queryFn: async () => {
+      const response = await api.get('/trainers');
+      return response.data.data;
+    },
+    enabled: open, // Charger seulement quand le dialog est ouvert
+  });
 
   const [formData, setFormData] = useState({
     title: '',
@@ -104,9 +165,9 @@ export default function CourseForm({ open, onClose }: CourseFormProps) {
     maxStudents: 0,
     practicalContent: '',
     // Champs pour cours de soutien
-    teacherName: '',
-    room: '',
-    schedule: '',
+    trainerId: '', // Changé de 'teacherName' à 'trainerId'
+    roomId: '', // Changé de 'room' à 'roomId'
+    timeSlotId: '', // Changé de 'schedule' à 'timeSlotId'
     schoolLevels: [] as string[],
     lyceeBranches: [] as string[],
     subjectModule: '',
@@ -128,6 +189,31 @@ export default function CourseForm({ open, onClose }: CourseFormProps) {
     },
   });
 
+  // Mutation pour créer un nouveau formateur
+  const createTrainerMutation = useMutation({
+    mutationFn: async (data: typeof newTrainerData) => {
+      const response = await api.post('/trainers', data);
+      return response.data;
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['trainers'] });
+      setOpenTrainerDialog(false);
+      // Sélectionner automatiquement le nouveau formateur créé
+      setFormData((prev) => ({ ...prev, trainerId: response.data.id }));
+      // Réinitialiser le formulaire formateur
+      setNewTrainerData({
+        firstName: '',
+        lastName: '',
+        specialty: '',
+        phone: '',
+        email: '',
+      });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || 'Erreur lors de la création du formateur');
+    },
+  });
+
   const resetForm = () => {
     setFormData({
       title: '',
@@ -143,9 +229,9 @@ export default function CourseForm({ open, onClose }: CourseFormProps) {
       minAge: 16,
       maxStudents: 0,
       practicalContent: '',
-      teacherName: '',
-      room: '',
-      schedule: '',
+      trainerId: '',
+      roomId: '',
+      timeSlotId: '',
       schoolLevels: [],
       lyceeBranches: [],
       subjectModule: '',
@@ -168,6 +254,7 @@ export default function CourseForm({ open, onClose }: CourseFormProps) {
   const isIndividualType = formData.type === 'Soutien Scolaire (Individuel)';
 
   return (
+    <>
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <form onSubmit={handleSubmit}>
         <DialogTitle>
@@ -180,6 +267,25 @@ export default function CourseForm({ open, onClose }: CourseFormProps) {
           {error && (
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
               {error}
+            </Alert>
+          )}
+
+          {/* Alerte si cours de soutien et pas de salles/créneaux */}
+          {isTutoringType && (!rooms || rooms.length === 0 || !timeSlots || timeSlots.length === 0) && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body2" fontWeight={600} gutterBottom>
+                ⚠️ Configuration requise pour les cours de soutien
+              </Typography>
+              {(!rooms || rooms.length === 0) && (
+                <Typography variant="body2">
+                  • Vous devez d'abord créer des <strong>Salles</strong> (menu Salles)
+                </Typography>
+              )}
+              {(!timeSlots || timeSlots.length === 0) && (
+                <Typography variant="body2">
+                  • Vous devez d'abord créer des <strong>Créneaux Horaires</strong> (menu Créneaux)
+                </Typography>
+              )}
             </Alert>
           )}
 
@@ -355,40 +461,74 @@ export default function CourseForm({ open, onClose }: CourseFormProps) {
                   </TextField>
                 </Grid>
 
-                {/* Nom de l'enseignant */}
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    required
-                    label="Nom de l'enseignant"
-                    value={formData.teacherName}
-                    onChange={(e) => handleChange('teacherName', e.target.value)}
-                    placeholder="Ex: M. Ahmed Benali"
-                  />
+                {/* Formateur/Enseignant */}
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                    <TextField
+                      select
+                      fullWidth
+                      required
+                      label="Formateur/Enseignant"
+                      value={formData.trainerId}
+                      onChange={(e) => handleChange('trainerId', e.target.value)}
+                      helperText={!trainers || trainers.length === 0 ? "⚠️ Aucun formateur disponible" : "Sélectionnez un formateur"}
+                      disabled={!trainers || trainers.length === 0}
+                    >
+                      {trainers?.map((trainer) => (
+                        <MenuItem key={trainer.id} value={trainer.id}>
+                          {trainer.firstName} {trainer.lastName} - {trainer.specialty}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setOpenTrainerDialog(true)}
+                      sx={{ minWidth: '150px', height: '56px' }}
+                    >
+                      ➕ Nouveau
+                    </Button>
+                  </Box>
                 </Grid>
 
                 {/* Salle */}
                 <Grid item xs={12} sm={6}>
                   <TextField
+                    select
                     fullWidth
                     required
                     label="Salle"
-                    value={formData.room}
-                    onChange={(e) => handleChange('room', e.target.value)}
-                    placeholder="Ex: Salle 101, Bloc A"
-                  />
+                    value={formData.roomId}
+                    onChange={(e) => handleChange('roomId', e.target.value)}
+                    helperText={!rooms || rooms.length === 0 ? "⚠️ Aucune salle disponible. Créez d'abord des salles." : "Sélectionnez une salle"}
+                    disabled={!rooms || rooms.length === 0}
+                  >
+                    {rooms?.map((room) => (
+                      <MenuItem key={room.id} value={room.id}>
+                        {room.name} - {room.type} ({room.capacity} places)
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Grid>
 
                 {/* Horaires/Créneaux */}
                 <Grid item xs={12} sm={6}>
                   <TextField
+                    select
                     fullWidth
                     required
-                    label="Horaires/Créneaux"
-                    value={formData.schedule}
-                    onChange={(e) => handleChange('schedule', e.target.value)}
-                    placeholder="Ex: Lundi 14h-16h, Mercredi 10h-12h"
-                  />
+                    label="Créneau Horaire"
+                    value={formData.timeSlotId}
+                    onChange={(e) => handleChange('timeSlotId', e.target.value)}
+                    helperText={!timeSlots || timeSlots.length === 0 ? "⚠️ Aucun créneau disponible. Créez d'abord des créneaux." : "Sélectionnez un créneau"}
+                    disabled={!timeSlots || timeSlots.length === 0}
+                  >
+                    {timeSlots?.map((slot) => (
+                      <MenuItem key={slot.id} value={slot.id}>
+                        {slot.dayOfWeek} : {slot.startTime} - {slot.endTime}
+                        {slot.label && ` (${slot.label})`}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Grid>
 
                 {/* Niveaux scolaires */}
@@ -538,5 +678,87 @@ export default function CourseForm({ open, onClose }: CourseFormProps) {
         </DialogActions>
       </form>
     </Dialog>
+
+    {/* Dialog pour créer un nouveau formateur */}
+    <Dialog open={openTrainerDialog} onClose={() => setOpenTrainerDialog(false)} maxWidth="sm" fullWidth>
+      <DialogTitle>Créer un Nouveau Formateur</DialogTitle>
+      <DialogContent>
+        <Alert severity="info" sx={{ mb: 2, mt: 1 }}>
+          Le formateur sera créé et automatiquement sélectionné pour cette formation.
+        </Alert>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              required
+              label="Prénom"
+              value={newTrainerData.firstName}
+              onChange={(e) => setNewTrainerData({ ...newTrainerData, firstName: e.target.value })}
+              margin="normal"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              required
+              label="Nom"
+              value={newTrainerData.lastName}
+              onChange={(e) => setNewTrainerData({ ...newTrainerData, lastName: e.target.value })}
+              margin="normal"
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              required
+              label="Spécialité"
+              value={newTrainerData.specialty}
+              onChange={(e) => setNewTrainerData({ ...newTrainerData, specialty: e.target.value })}
+              margin="normal"
+              placeholder="Ex: Mathématiques, Informatique, Cuisine..."
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              required
+              label="Téléphone"
+              value={newTrainerData.phone}
+              onChange={(e) => setNewTrainerData({ ...newTrainerData, phone: e.target.value })}
+              margin="normal"
+              placeholder="Ex: 0555123456"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={newTrainerData.email}
+              onChange={(e) => setNewTrainerData({ ...newTrainerData, email: e.target.value })}
+              margin="normal"
+            />
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setOpenTrainerDialog(false)}>Annuler</Button>
+        <Button
+          onClick={() => {
+            if (!newTrainerData.firstName || !newTrainerData.lastName || !newTrainerData.specialty || !newTrainerData.phone) {
+              alert('Veuillez remplir tous les champs obligatoires');
+              return;
+            }
+            createTrainerMutation.mutate(newTrainerData);
+          }}
+          variant="contained"
+          color="primary"
+          disabled={createTrainerMutation.isPending}
+        >
+          {createTrainerMutation.isPending ? 'Création...' : 'Créer le Formateur'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 }

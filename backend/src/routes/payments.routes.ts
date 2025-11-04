@@ -23,13 +23,14 @@ const paymentRepository = AppDataSource.getRepository(Payment);
 router.get('/', authenticate, async (req: Request, res: Response) => {
   try {
     const payments = await paymentRepository.find({
-      relations: ['student', 'enrollment', 'enrollment.session', 'enrollment.session.course'],
+      relations: ['enrollment', 'enrollment.student', 'enrollment.session', 'enrollment.session.course'],
       order: { paymentDate: 'DESC' },
     });
 
     // Restructurer pour inclure le cours directement
     const paymentsWithCourse = payments.map((payment) => ({
       ...payment,
+      student: payment.enrollment?.student || null,
       course: payment.enrollment?.session?.course || null,
     }));
 
@@ -61,7 +62,7 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
 
     const payment = await paymentRepository.findOne({
       where: { id: parseInt(id) },
-      relations: ['student', 'enrollment', 'enrollment.session', 'enrollment.session.course'],
+      relations: ['enrollment', 'enrollment.student', 'enrollment.session', 'enrollment.session.course'],
     });
 
     if (!payment) {
@@ -101,7 +102,7 @@ router.get('/student/:studentId', authenticate, async (req: Request, res: Respon
       where: { 
         enrollment: { studentId: parseInt(studentId) }
       },
-      relations: ['enrollment', 'enrollment.session', 'enrollment.session.course'],
+      relations: ['enrollment', 'enrollment.student', 'enrollment.session', 'enrollment.session.course'],
       order: { paymentDate: 'DESC' },
     });
 
