@@ -43,6 +43,16 @@ export class Registration {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  // Frais d'inscription (payés une seule fois)
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  registrationFee: number;
+
+  @Column({ type: 'boolean', default: false })
+  registrationFeePaid: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  registrationFeePaidAt: Date;
+
   // Lien vers la formation demandée
   @ManyToOne(() => Course, { eager: true })
   @JoinColumn({ name: 'courseId' })

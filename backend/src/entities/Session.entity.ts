@@ -32,6 +32,16 @@ export class Session {
   @Column({ type: 'date' })
   endDate: Date;
 
+  // Pour le suivi mensuel (ex: "Septembre 2025", "Octobre 2025")
+  @Column({ nullable: true })
+  monthLabel: string;
+
+  @Column({ type: 'int', nullable: true })
+  year: number;
+
+  @Column({ type: 'int', nullable: true })
+  month: number; // 1-12
+
   @Column({ type: 'time', nullable: true })
   startTime: string;
 
@@ -43,6 +53,10 @@ export class Session {
 
   @Column()
   location: string;
+
+  // Prix de cette session (peut être différent du prix de la formation)
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  price: number;
 
   @Column({
     type: 'enum',

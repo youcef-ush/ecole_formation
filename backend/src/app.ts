@@ -18,6 +18,7 @@ import roomsRoutes from './routes/rooms.routes';
 import timeslotsRoutes from './routes/timeslots.routes';
 import registrationsRoutes from './routes/registrations.routes';
 import paymentsRoutes from './routes/payments.routes';
+import financeRoutes from './routes/finance.routes';
 import { errorHandler } from './middleware/error.middleware';
 
 // Load environment variables
@@ -75,6 +76,7 @@ app.use('/api/rooms', roomsRoutes);
 app.use('/api/time-slots', timeslotsRoutes);
 app.use('/api/registrations', registrationsRoutes);
 app.use('/api/payments', paymentsRoutes);
+app.use('/api/finance', financeRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
