@@ -3,6 +3,7 @@ import { AppDataSource } from '../config/database.config';
 import { Course } from '../entities/Course.entity';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
 import { UserRole } from '../entities/User.entity';
+import { AppError } from '../middleware/error.middleware';
 
 const router = Router();
 
@@ -134,6 +135,25 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
     await courseRepo.save(course);
 
     res.status(201).json({ success: true, data: course });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/courses/:id
+router.put('/:id', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const courseRepo = AppDataSource.getRepository(Course);
+    const course = await courseRepo.findOne({ where: { id: parseInt(req.params.id) } });
+    
+    if (!course) {
+      throw new AppError('Formation non trouvée', 404);
+    }
+
+    courseRepo.merge(course, req.body);
+    await courseRepo.save(course);
+
+    res.json({ success: true, data: course });
   } catch (error) {
     next(error);
   }

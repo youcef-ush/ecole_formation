@@ -12,7 +12,7 @@
 4. Copiez-collez exactement ce JSON:
 ```json
 {
-  "email": "admin@eftg.dz",
+  "email": "admin@ecole.dz",
   "password": "admin123",
   "role": "admin"
 }
@@ -24,7 +24,7 @@
 
 1. Ouvrez http://localhost:5173
 2. Utilisez ces identifiants:
-   - **Email**: `admin@eftg.dz`
+   - **Email**: `admin@ecole.dz`
    - **Mot de passe**: `admin123`
 
 ---
@@ -36,7 +36,7 @@
 - **Statut**: Déjà créé et fonctionnel
 
 ### Compte 2 (À créer)
-- **Email**: `admin@eftg.dz`
+- **Email**: `admin@ecole.dz`
 - **Mot de passe**: `admin123`
 - **Rôle**: admin
 

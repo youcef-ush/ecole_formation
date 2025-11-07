@@ -12,6 +12,9 @@ import Registrations from './pages/Registrations'
 import Rooms from './pages/Rooms'
 import TimeSlots from './pages/TimeSlots'
 import Finance from './pages/Finance'
+import MonthlyTracking from './pages/MonthlyTracking'
+import InstallmentPayments from './pages/InstallmentPayments'
+import PrintReceipt from './pages/PrintReceipt'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore()
@@ -22,6 +25,7 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/print-receipt" element={<PrintReceipt />} />
       <Route
         path="/"
         element={
@@ -38,6 +42,8 @@ function App() {
         <Route path="enrollments" element={<Enrollments />} />
         <Route path="registrations" element={<Registrations />} />
         <Route path="finance" element={<Finance />} />
+        <Route path="monthly-tracking" element={<MonthlyTracking />} />
+        <Route path="installment-payments" element={<InstallmentPayments />} />
         <Route path="rooms" element={<Rooms />} />
         <Route path="timeslots" element={<TimeSlots />} />
       </Route>

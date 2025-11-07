@@ -5,15 +5,26 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { Course } from './Course.entity';
 import { Session } from './Session.entity';
+import { InstallmentPayment } from './InstallmentPayment.entity';
+import { Student } from './Student.entity';
 
 export enum RegistrationStatus {
-  PENDING_PAYMENT = 'En attente de paiement',
-  VALIDATED = 'Validée par Finance',
+  PENDING = 'En attente',
+  PAID = 'Frais payés',
+  VALIDATED = 'Validée',
   REJECTED = 'Refusée',
+}
+
+export enum PaymentMethod {
+  CASH = 'Espèces',
+  CARD = 'Carte bancaire',
+  BANK_TRANSFER = 'Virement bancaire',
+  CHECK = 'Chèque',
 }
 
 @Entity('registrations')
@@ -36,14 +47,14 @@ export class Registration {
   @Column({
     type: 'enum',
     enum: RegistrationStatus,
-    default: RegistrationStatus.PENDING_PAYMENT,
+    default: RegistrationStatus.PENDING,
   })
   status: RegistrationStatus;
 
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  // Frais d'inscription (payés une seule fois)
+  // === INFORMATIONS PAIEMENT FRAIS D'INSCRIPTION ===
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   registrationFee: number;
 
@@ -52,6 +63,26 @@ export class Registration {
 
   @Column({ type: 'timestamp', nullable: true })
   registrationFeePaidAt: Date;
+
+  @Column({
+    type: 'enum',
+    enum: PaymentMethod,
+    nullable: true,
+  })
+  paymentMethod: PaymentMethod;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  amountPaid: number;
+
+  // === VALIDATION (après paiement) ===
+  @Column({ type: 'boolean', default: false })
+  isValidated: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  validatedAt: Date;
+
+  @Column({ nullable: true })
+  validatedBy: number; // userId du validateur
 
   // Lien vers la formation demandée
   @ManyToOne(() => Course, { eager: true })
@@ -70,6 +101,10 @@ export class Registration {
   sessionId: number;
 
   // Lien vers l'étudiant créé après validation (nullable)
+  @ManyToOne(() => Student, { eager: true, nullable: true })
+  @JoinColumn({ name: 'studentId' })
+  student: Student;
+
   @Column({ nullable: true })
   studentId: number;
 
@@ -79,9 +114,15 @@ export class Registration {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
-  validatedAt: Date;
+  // Plan de paiement échelonné
+  @Column({ type: 'jsonb', nullable: true })
+  installmentPlan: {
+    totalAmount: number;
+    deposit: number;
+    numberOfInstallments: number;
+    installmentAmount: number;
+  } | null;
 
-  @Column({ nullable: true })
-  validatedBy: number; // userId du validateur
+  @OneToMany(() => InstallmentPayment, installment => installment.registration, { eager: true })
+  installmentPayments: InstallmentPayment[];
 }

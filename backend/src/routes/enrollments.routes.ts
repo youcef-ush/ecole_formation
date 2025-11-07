@@ -100,4 +100,55 @@ router.post('/:id/pay', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
+// GET /api/enrollments/:id/payment-details - Get payment details for receipt
+router.get('/:id/payment-details', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const { id } = req.params;
+
+    const enrollmentRepo = AppDataSource.getRepository(Enrollment);
+
+    const enrollment = await enrollmentRepo.findOne({
+      where: { id: parseInt(id) },
+      relations: ['student', 'session', 'session.course', 'payments', 'sessionPayments'],
+    });
+
+    if (!enrollment) {
+      throw new AppError('Inscription non trouvée', 404);
+    }
+
+    res.json({ success: true, data: enrollment });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/enrollments/:id - Delete an enrollment
+router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const { id } = req.params;
+
+    const enrollmentRepo = AppDataSource.getRepository(Enrollment);
+
+    const enrollment = await enrollmentRepo.findOne({
+      where: { id: parseInt(id) },
+      relations: ['payments'],
+    });
+
+    if (!enrollment) {
+      throw new AppError('Inscription non trouvée', 404);
+    }
+
+    // Vérifier s'il y a des paiements associés
+    if (enrollment.payments && enrollment.payments.length > 0) {
+      throw new AppError('Impossible de supprimer une inscription avec des paiements associés', 400);
+    }
+
+    await enrollmentRepo.remove(enrollment);
+
+    res.json({ success: true, message: 'Inscription supprimée avec succès' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

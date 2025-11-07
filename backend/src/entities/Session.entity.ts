@@ -48,6 +48,10 @@ export class Session {
   @Column({ type: 'time', nullable: true })
   endTime: string;
 
+  // Jours de la semaine (peut être multiple: "Lundi,Mercredi,Vendredi")
+  @Column({ nullable: true })
+  daysOfWeek: string;
+
   @Column({ type: 'int' })
   capacity: number;
 

@@ -19,6 +19,8 @@ import AppRegistrationIcon from '@mui/icons-material/AppRegistration'
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
+import PaymentsIcon from '@mui/icons-material/Payments'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 interface SidebarProps {
@@ -35,6 +37,8 @@ const menuItems = [
   { text: 'Sessions', icon: <EventIcon />, path: '/sessions' },
   { text: 'Inscriptions', icon: <AppRegistrationIcon />, path: '/registrations' },
   { text: 'Finance', icon: <AccountBalanceWalletIcon />, path: '/finance' },
+  { text: 'Suivi Mensuel', icon: <CalendarMonthIcon />, path: '/monthly-tracking' },
+  { text: 'Paiements Échelonnés', icon: <PaymentsIcon />, path: '/installment-payments' },
   { text: 'Affectations', icon: <AssignmentIcon />, path: '/enrollments' },
   { text: 'Salles', icon: <MeetingRoomIcon />, path: '/rooms' },
   { text: 'Créneaux', icon: <AccessTimeIcon />, path: '/timeslots' },

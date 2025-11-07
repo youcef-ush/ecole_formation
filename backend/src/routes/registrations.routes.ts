@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { AppDataSource } from '../config/database.config';
-import { Registration, RegistrationStatus } from '../entities/Registration.entity';
+import { Registration, RegistrationStatus, PaymentMethod } from '../entities/Registration.entity';
 import { Student } from '../entities/Student.entity';
 import { User, UserRole } from '../entities/User.entity';
 import { Course } from '../entities/Course.entity';
@@ -40,16 +40,21 @@ const enrollmentRepository = AppDataSource.getRepository(Enrollment);
  */
 router.get('/', authenticate, async (req: Request, res: Response) => {
   try {
-    const { status } = req.query;
+    const { status, hasInstallments } = req.query;
 
     const queryBuilder = registrationRepository
       .createQueryBuilder('registration')
       .leftJoinAndSelect('registration.course', 'course')
       .leftJoinAndSelect('registration.session', 'session')
+      .leftJoinAndSelect('registration.installmentPayments', 'installmentPayments')
       .orderBy('registration.createdAt', 'DESC');
 
     if (status) {
       queryBuilder.where('registration.status = :status', { status });
+    }
+
+    if (hasInstallments === 'true') {
+      queryBuilder.andWhere('registration.installmentPlan IS NOT NULL');
     }
 
     const registrations = await queryBuilder.getMany();
@@ -122,7 +127,7 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
  * @swagger
  * /api/registrations:
  *   post:
- *     summary: Créer une nouvelle demande d'inscription
+ *     summary: Créer une nouvelle demande d'inscription (candidature)
  *     tags: [Registrations]
  *     security:
  *       - bearerAuth: []
@@ -137,6 +142,7 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
  *               - lastName
  *               - courseId
  *               - sessionId
+ *               - registrationFee
  *             properties:
  *               firstName:
  *                 type: string
@@ -155,20 +161,55 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
  *                 description: ID de la formation choisie
  *               sessionId:
  *                 type: integer
- *                 description: ID de la session à laquelle s'inscrire (obligatoire)
+ *                 description: ID de la session à laquelle s'inscrire
+ *               registrationFee:
+ *                 type: number
+ *                 description: Montant des frais d'inscription
  *               notes:
  *                 type: string
  *                 description: Notes ou commentaires sur l'inscription
  */
 router.post('/', authenticate, authorize(UserRole.ADMIN), async (req: Request, res: Response) => {
   try {
-    const { firstName, lastName, email, phone, courseId, sessionId, notes } = req.body;
+    const { firstName, lastName, email, phone, courseId, sessionId, registrationFee, notes } = req.body;
 
     // Validation
-    if (!firstName || !lastName || !courseId || !sessionId) {
+    if (!firstName || !lastName || !courseId) {
       return res.status(400).json({
         success: false,
-        message: 'Nom, prénom, formation et session sont obligatoires',
+        message: 'Nom, prénom et formation sont obligatoires',
+      });
+    }
+
+    // Vérifier s'il existe déjà un étudiant avec le même nom et prénom
+    const existingStudent = await studentRepository
+      .createQueryBuilder('student')
+      .where('LOWER(student.firstName) = LOWER(:firstName)', { firstName })
+      .andWhere('LOWER(student.lastName) = LOWER(:lastName)', { lastName })
+      .getOne();
+
+    if (existingStudent) {
+      return res.status(409).json({
+        success: false,
+        message: `Un étudiant avec le nom "${firstName} ${lastName}" existe déjà dans le système`,
+        code: 'DUPLICATE_STUDENT',
+      });
+    }
+
+    // Vérifier s'il existe déjà une inscription en attente avec le même nom et prénom
+    const existingRegistration = await registrationRepository
+      .createQueryBuilder('registration')
+      .where('LOWER(registration.firstName) = LOWER(:firstName)', { firstName })
+      .andWhere('LOWER(registration.lastName) = LOWER(:lastName)', { lastName })
+      .andWhere('registration.status != :rejectedStatus', { rejectedStatus: RegistrationStatus.REJECTED })
+      .getOne();
+
+    if (existingRegistration) {
+      return res.status(409).json({
+        success: false,
+        message: `Une inscription pour "${firstName} ${lastName}" existe déjà (${existingRegistration.status})`,
+        code: 'DUPLICATE_REGISTRATION',
+        existingRegistration,
       });
     }
 
@@ -184,28 +225,33 @@ router.post('/', authenticate, authorize(UserRole.ADMIN), async (req: Request, r
       });
     }
 
-    // Vérifier que la session existe
-    const session = await sessionRepository.findOne({
-      where: { id: sessionId },
-    });
-
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Session non trouvée',
+    // Vérifier que la session existe (si fournie)
+    if (sessionId) {
+      const session = await sessionRepository.findOne({
+        where: { id: sessionId },
       });
+
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session non trouvée',
+        });
+      }
     }
 
-    // Créer l'inscription avec statut "En attente de paiement"
+    // Créer l'inscription avec statut "En attente"
     const registration = registrationRepository.create({
       firstName,
       lastName,
       email,
       phone,
       courseId,
-      sessionId,
+      sessionId: sessionId || null, // Optionnel
+      registrationFee: registrationFee || 0, // Optionnel, peut être défini à 0 initialement
       notes,
-      status: RegistrationStatus.PENDING_PAYMENT,
+      status: RegistrationStatus.PENDING,
+      registrationFeePaid: false,
+      isValidated: false,
     });
 
     await registrationRepository.save(registration);
@@ -232,15 +278,105 @@ router.post('/', authenticate, authorize(UserRole.ADMIN), async (req: Request, r
 
 /**
  * @swagger
+ * /api/registrations/{id}/pay:
+ *   put:
+ *     summary: Marquer les frais d'inscription comme payés
+ *     description: Met à jour le statut de paiement après réception des frais d'inscription
+ *     tags: [Registrations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de l'inscription
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - paymentMethod
+ *               - amountPaid
+ *             properties:
+ *               paymentMethod:
+ *                 type: string
+ *                 enum: [CASH, CARD, BANK_TRANSFER, CHECK]
+ *               amountPaid:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Paiement enregistré avec succès
+ *       404:
+ *         description: Inscription non trouvée
+ */
+router.put('/:id/pay', authenticate, authorize(UserRole.ADMIN), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { paymentMethod, amountPaid, registrationFee } = req.body;
+
+    if (!paymentMethod || !amountPaid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Méthode de paiement et montant sont obligatoires',
+      });
+    }
+
+    const registration = await registrationRepository.findOne({
+      where: { id: parseInt(id) },
+      relations: ['course', 'session'],
+    });
+
+    if (!registration) {
+      return res.status(404).json({
+        success: false,
+        message: 'Inscription non trouvée',
+      });
+    }
+
+    // Mettre à jour les frais si fournis
+    if (registrationFee) {
+      registration.registrationFee = registrationFee;
+    }
+
+    // Marquer comme payé
+    registration.registrationFeePaid = true;
+    registration.registrationFeePaidAt = new Date();
+    registration.paymentMethod = paymentMethod;
+    registration.amountPaid = amountPaid;
+    registration.status = RegistrationStatus.PAID;
+
+    await registrationRepository.save(registration);
+
+    res.json({
+      success: true,
+      message: 'Paiement enregistré avec succès',
+      data: registration,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'enregistrement du paiement',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/registrations/{id}/validate:
  *   post:
- *     summary: Valider une inscription et créer automatiquement l'étudiant + affectation
+ *     summary: Valider une inscription et créer automatiquement l'étudiant avec QR Code
  *     description: |
- *       Cette route effectue les opérations suivantes en une seule validation :
- *       1. Crée un compte utilisateur pour l'étudiant
- *       2. Crée la fiche étudiant avec les informations du candidat
- *       3. Crée automatiquement l'affectation (enrollment) à la session choisie lors de l'inscription
- *       4. Met à jour le statut de l'inscription à "Validée par Finance"
+ *       NOUVEAU PROCESSUS :
+ *       1. Vérifie que les frais d'inscription sont payés
+ *       2. Crée un compte utilisateur pour l'étudiant
+ *       3. Crée la fiche étudiant avec un QR Code unique (format: STU-{id}-{timestamp})
+ *       4. Crée automatiquement l'affectation à la session
+ *       5. Met à jour le statut à "Validée"
  *     tags: [Registrations]
  *     security:
  *       - bearerAuth: []
@@ -253,30 +389,9 @@ router.post('/', authenticate, authorize(UserRole.ADMIN), async (req: Request, r
  *         description: ID de l'inscription à valider
  *     responses:
  *       200:
- *         description: Inscription validée, étudiant créé et affecté à la session
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     registration:
- *                       type: object
- *                       description: L'inscription validée
- *                     student:
- *                       type: object
- *                       description: L'étudiant créé
- *                     enrollment:
- *                       type: object
- *                       description: L'affectation créée automatiquement
+ *         description: Inscription validée, étudiant créé avec QR Code
  *       400:
- *         description: Inscription déjà validée ou aucune session associée
+ *         description: Frais non payés ou inscription déjà validée
  *       404:
  *         description: Inscription non trouvée
  */
@@ -297,25 +412,65 @@ router.post('/:id/validate', authenticate, authorize(UserRole.ADMIN), async (req
       });
     }
 
-    if (registration.status === RegistrationStatus.VALIDATED) {
+    // Recharger pour s'assurer d'avoir les dernières données (après le paiement)
+    const refreshedRegistration = await registrationRepository.findOne({
+      where: { id: parseInt(id) },
+      relations: ['course', 'session'],
+    });
+
+    if (!refreshedRegistration) {
+      return res.status(404).json({
+        success: false,
+        message: 'Inscription non trouvée après rechargement',
+      });
+    }
+
+    // Vérifier que les frais sont payés avant validation
+    if (!refreshedRegistration.registrationFeePaid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Les frais d\'inscription doivent être payés avant validation',
+        debug: {
+          registrationFeePaid: refreshedRegistration.registrationFeePaid,
+          registrationFee: refreshedRegistration.registrationFee,
+          amountPaid: refreshedRegistration.amountPaid,
+        }
+      });
+    }
+
+    if (refreshedRegistration.isValidated) {
       return res.status(400).json({
         success: false,
         message: 'Cette inscription est déjà validée',
       });
     }
 
-    // Vérifier que la session existe
-    if (!registration.sessionId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Aucune session n\'est associée à cette inscription',
-      });
-    }
-
     // Créer un utilisateur pour l'étudiant
     const hashedPassword = await bcrypt.hash('Etudiant123', 10);
+    
+    // Générer un email unique si non fourni ou si doublon
+    let emailToUse = refreshedRegistration.email;
+    
+    if (!emailToUse) {
+      // Générer un email unique basé sur nom + timestamp
+      const timestamp = Date.now();
+      emailToUse = `${refreshedRegistration.firstName}.${refreshedRegistration.lastName}.${timestamp}@ecole.dz`.toLowerCase();
+    } else {
+      // Vérifier si l'email existe déjà et générer un email unique si nécessaire
+      const existingUser = await userRepository.findOne({
+        where: { email: emailToUse },
+      });
+
+      if (existingUser) {
+        // Email existe, générer un email unique avec timestamp
+        const timestamp = Date.now();
+        const [localPart, domain] = emailToUse.split('@');
+        emailToUse = `${localPart}.${timestamp}@${domain || 'ecole.dz'}`;
+      }
+    }
+
     const user = userRepository.create({
-      email: registration.email || `${registration.firstName}.${registration.lastName}@ecole.dz`.toLowerCase(),
+      email: emailToUse,
       password: hashedPassword,
       role: UserRole.STUDENT,
     });
@@ -324,48 +479,65 @@ router.post('/:id/validate', authenticate, authorize(UserRole.ADMIN), async (req
 
     // Créer l'étudiant dans la base de données
     const student = studentRepository.create({
-      firstName: registration.firstName,
-      lastName: registration.lastName,
+      firstName: refreshedRegistration.firstName,
+      lastName: refreshedRegistration.lastName,
       dateOfBirth: new Date('2000-01-01'), // Date par défaut, à modifier plus tard
-      phone: registration.phone || '',
+      phone: refreshedRegistration.phone || '',
       address: '',
       userId: user.id,
     });
 
     await studentRepository.save(student);
 
-    // NOUVEAU : Créer automatiquement l'affectation (enrollment) à la session
-    const enrollment = enrollmentRepository.create({
-      studentId: student.id,
-      sessionId: registration.sessionId,
-      status: EnrollmentStatus.PENDING,
-      notes: `Affectation automatique depuis l'inscription #${registration.id}`,
-    });
+    // NOUVEAU : Générer le QR Code unique pour l'étudiant
+    const timestamp = Date.now();
+    const qrCode = `STU-${student.id}-${timestamp}`;
+    student.qrCode = qrCode;
+    await studentRepository.save(student);
 
-    await enrollmentRepository.save(enrollment);
+    // Créer automatiquement l'affectation (enrollment) à la session SI une session existe
+    let enrollment = null;
+    if (refreshedRegistration.sessionId) {
+      enrollment = enrollmentRepository.create({
+        studentId: student.id,
+        sessionId: refreshedRegistration.sessionId,
+        status: EnrollmentStatus.PENDING,
+        notes: `Affectation automatique depuis l'inscription #${refreshedRegistration.id}`,
+      });
+
+      await enrollmentRepository.save(enrollment);
+    }
 
     // Mettre à jour l'inscription
-    registration.status = RegistrationStatus.VALIDATED;
-    registration.validatedAt = new Date();
-    registration.validatedBy = userId;
-    registration.studentId = student.id;
+    refreshedRegistration.status = RegistrationStatus.VALIDATED;
+    refreshedRegistration.isValidated = true;
+    refreshedRegistration.validatedAt = new Date();
+    refreshedRegistration.validatedBy = userId;
+    refreshedRegistration.studentId = student.id;
 
-    await registrationRepository.save(registration);
+    await registrationRepository.save(refreshedRegistration);
 
     res.json({
       success: true,
-      message: 'Inscription validée, étudiant créé et affecté à la session avec succès',
+      message: enrollment 
+        ? 'Inscription validée avec succès - Étudiant créé avec QR Code et affecté à la session'
+        : 'Inscription validée avec succès - Étudiant créé avec QR Code (pas de session assignée)',
       data: {
-        registration,
-        student,
+        registration: refreshedRegistration,
+        student: {
+          ...student,
+          qrCode: qrCode, // QR Code inclus dans la réponse
+        },
         enrollment,
       },
     });
   } catch (error) {
+    console.error('Erreur validation complète:', error);
     res.status(500).json({
       success: false,
       message: 'Erreur lors de la validation de l\'inscription',
       error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
     });
   }
 });

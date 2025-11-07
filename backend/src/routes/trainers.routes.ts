@@ -3,6 +3,7 @@ import { AppDataSource } from '../config/database.config';
 import { Trainer } from '../entities/Trainer.entity';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
 import { UserRole } from '../entities/User.entity';
+import { AppError } from '../middleware/error.middleware';
 
 const router = Router();
 
@@ -115,6 +116,25 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
     await trainerRepo.save(trainer);
 
     res.status(201).json({ success: true, data: trainer });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/trainers/:id
+router.put('/:id', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const trainerRepo = AppDataSource.getRepository(Trainer);
+    const trainer = await trainerRepo.findOne({ where: { id: parseInt(req.params.id) } });
+    
+    if (!trainer) {
+      throw new AppError('Formateur non trouvé', 404);
+    }
+
+    trainerRepo.merge(trainer, req.body);
+    await trainerRepo.save(trainer);
+
+    res.json({ success: true, data: trainer });
   } catch (error) {
     next(error);
   }

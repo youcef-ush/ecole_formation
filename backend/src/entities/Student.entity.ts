@@ -37,6 +37,10 @@ export class Student {
   @Column({ nullable: true })
   postalCode: string;
 
+  // Code QR unique pour chaque étudiant (généré automatiquement)
+  @Column({ unique: true, nullable: true })
+  qrCode: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
