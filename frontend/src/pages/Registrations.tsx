@@ -20,6 +20,7 @@ import {
   MenuItem,
   Alert,
   Tooltip,
+  Snackbar,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -81,6 +82,14 @@ const Registrations: React.FC = () => {
   const [openValidationDialog, setOpenValidationDialog] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('');
+  
+  // États pour les notifications Snackbar
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info',
+  });
+  
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -90,16 +99,25 @@ const Registrations: React.FC = () => {
     notes: '',
   });
   const [paymentData, setPaymentData] = useState({
-    paymentMethod: 'CASH',
+    paymentMethod: 'Espèces',
     amountPaid: '',
   });
   const [validationData, setValidationData] = useState({
     registrationFee: '',
-    paymentMethod: 'CASH',
+    paymentMethod: 'Espèces',
     amountPaid: '',
   });
 
   const queryClient = useQueryClient();
+
+  // Fonction pour afficher les notifications
+  const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
 
   // Récupérer les inscriptions
   const { data: registrations, isLoading } = useQuery<Registration[]>({
@@ -130,7 +148,7 @@ const Registrations: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['registrations'] });
       setOpenForm(false);
       resetForm();
-      alert('✅ Inscription créée avec succès');
+      showNotification('✅ Inscription créée avec succès', 'success');
     },
     onError: (error: any) => {
       console.error('Erreur création inscription:', error);
@@ -138,9 +156,9 @@ const Registrations: React.FC = () => {
       const errorCode = error.response?.data?.code;
       
       if (errorCode === 'DUPLICATE_STUDENT' || errorCode === 'DUPLICATE_REGISTRATION') {
-        alert(`⚠️ ${errorMessage}\n\nVeuillez vérifier si cette personne est déjà inscrite ou enregistrée comme étudiant.`);
+        showNotification(`⚠️ DOUBLON: ${errorMessage}`, 'warning');
       } else {
-        alert(`❌ ${errorMessage}`);
+        showNotification(`❌ ${errorMessage}`, 'error');
       }
     },
   });
@@ -155,7 +173,12 @@ const Registrations: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['registrations'] });
       setOpenPaymentDialog(false);
       setSelectedRegistration(null);
-      setPaymentData({ paymentMethod: 'CASH', amountPaid: '' });
+      setPaymentData({ paymentMethod: 'Espèces', amountPaid: '' });
+      showNotification('✅ Paiement enregistré avec succès', 'success');
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'Erreur lors de l\'enregistrement du paiement';
+      showNotification(`❌ ${errorMessage}`, 'error');
     },
   });
 
@@ -183,12 +206,12 @@ const Registrations: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       setOpenValidationDialog(false);
       setSelectedRegistration(null);
-      setValidationData({ registrationFee: '', paymentMethod: 'CASH', amountPaid: '' });
-      alert(`✅ Étudiant créé avec succès!\nQR Code: ${data.student?.qrCode || 'N/A'}`);
+      setValidationData({ registrationFee: '', paymentMethod: 'Espèces', amountPaid: '' });
+      showNotification(`✅ Étudiant créé avec succès! QR Code: ${data.student?.qrCode || 'N/A'}`, 'success');
     },
     onError: (error: any) => {
       console.error('Erreur complète:', error);
-      alert(`❌ Erreur: ${error.message || 'Une erreur est survenue'}`);
+      showNotification(`❌ ${error.message || 'Une erreur est survenue'}`, 'error');
     },
   });
 
@@ -200,6 +223,11 @@ const Registrations: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['registrations'] });
+      showNotification('✅ Inscription refusée', 'success');
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'Erreur lors du refus';
+      showNotification(`❌ ${errorMessage}`, 'error');
     },
   });
 
@@ -211,6 +239,11 @@ const Registrations: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['registrations'] });
+      showNotification('✅ Inscription supprimée', 'success');
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'Erreur lors de la suppression';
+      showNotification(`❌ ${errorMessage}`, 'error');
     },
   });
 
@@ -227,7 +260,7 @@ const Registrations: React.FC = () => {
 
   const handleSubmit = () => {
     if (!formData.firstName || !formData.lastName || !formData.courseId) {
-      alert('Veuillez remplir tous les champs obligatoires (Nom, Prénom et Formation)');
+      showNotification('⚠️ Veuillez remplir tous les champs obligatoires (Nom, Prénom et Formation)', 'warning');
       return;
     }
     createMutation.mutate(formData);
@@ -254,7 +287,7 @@ const Registrations: React.FC = () => {
 
   const handlePayment = () => {
     if (!selectedRegistration || !paymentData.amountPaid) {
-      alert('Veuillez remplir tous les champs de paiement');
+      showNotification('⚠️ Veuillez remplir tous les champs de paiement', 'warning');
       return;
     }
     payMutation.mutate({
@@ -265,7 +298,7 @@ const Registrations: React.FC = () => {
 
   const handleValidate = () => {
     if (!selectedRegistration || !validationData.registrationFee || !validationData.amountPaid) {
-      alert('Veuillez remplir tous les champs (Frais d\'inscription et Montant payé)');
+      showNotification('⚠️ Veuillez remplir tous les champs (Frais d\'inscription et Montant payé)', 'warning');
       return;
     }
     validateMutation.mutate({
@@ -801,6 +834,23 @@ const Registrations: React.FC = () => {
           <Button onClick={() => setOpenDetails(false)}>Fermer</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar pour les notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%', fontSize: '1rem', fontWeight: 'bold' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

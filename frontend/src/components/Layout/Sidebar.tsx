@@ -54,8 +54,8 @@ export default function Sidebar({ drawerWidth, mobileOpen, onDrawerToggle }: Sid
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <SchoolIcon color="primary" />
           <ListItemText
-            primary="École Formation"
-            primaryTypographyProps={{ fontWeight: 600, color: 'primary' }}
+            primary="Inspired Academy by Nana"
+            primaryTypographyProps={{ fontWeight: 600, color: 'primary', fontSize: '0.9rem' }}
           />
         </Box>
       </Toolbar>

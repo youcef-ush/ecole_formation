@@ -140,8 +140,11 @@ export default function Dashboard() {
       <Typography variant="h4" gutterBottom fontWeight={600}>
         Tableau de bord
       </Typography>
-      <Typography variant="body1" color="text.secondary" paragraph>
-        Vue d'ensemble de votre école de formation
+      <Typography variant="body1" color="text.secondary">
+        Vue d'ensemble de Inspired Academy by Nana
+      </Typography>
+      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 3 }}>
+        📍 Centre de Formation Bouinan, Blida | 📞 +213 770 029 426 / +213 770 029 425
       </Typography>
 
       <Grid container spacing={3}>

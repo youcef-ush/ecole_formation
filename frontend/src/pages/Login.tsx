@@ -59,9 +59,12 @@ export default function Login() {
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
             <SchoolIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
             <Typography component="h1" variant="h5" fontWeight={600}>
-              École de Formation
+              Inspired Academy by Nana
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="caption" color="text.secondary">
+              Centre de Formation Bouinan, Blida
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               Connectez-vous à votre compte
             </Typography>
           </Box>

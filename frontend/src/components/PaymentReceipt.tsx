@@ -70,13 +70,16 @@ export default function PaymentReceipt({
       {/* En-tête */}
       <Box textAlign="center" mb={4}>
         <Typography variant="h5" fontWeight={700} color="primary" gutterBottom>
-          ÉCOLE DE FORMATION
+          INSPIRED ACADEMY BY NANA
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Centre de Formation Professionnelle
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Alger, Algérie
+          Centre de Formation Bouinan, Blida
+        </Typography>
+        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+          📞 +213 770 029 426 / +213 770 029 425
         </Typography>
       </Box>
 

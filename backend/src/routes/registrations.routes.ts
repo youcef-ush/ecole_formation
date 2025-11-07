@@ -454,7 +454,7 @@ router.post('/:id/validate', authenticate, authorize(UserRole.ADMIN), async (req
     if (!emailToUse) {
       // Générer un email unique basé sur nom + timestamp
       const timestamp = Date.now();
-      emailToUse = `${refreshedRegistration.firstName}.${refreshedRegistration.lastName}.${timestamp}@ecole.dz`.toLowerCase();
+      emailToUse = `${refreshedRegistration.firstName}.${refreshedRegistration.lastName}.${timestamp}@inspiredacademy.dz`.toLowerCase();
     } else {
       // Vérifier si l'email existe déjà et générer un email unique si nécessaire
       const existingUser = await userRepository.findOne({
@@ -465,7 +465,7 @@ router.post('/:id/validate', authenticate, authorize(UserRole.ADMIN), async (req
         // Email existe, générer un email unique avec timestamp
         const timestamp = Date.now();
         const [localPart, domain] = emailToUse.split('@');
-        emailToUse = `${localPart}.${timestamp}@${domain || 'ecole.dz'}`;
+        emailToUse = `${localPart}.${timestamp}@${domain || 'inspiredacademy.dz'}`;
       }
     }
 
