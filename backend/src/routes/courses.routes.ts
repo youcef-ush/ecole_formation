@@ -131,7 +131,15 @@ router.get('/:id', async (req: AuthRequest, res: Response, next) => {
 router.post('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const courseRepo = AppDataSource.getRepository(Course);
-    const course = courseRepo.create(req.body);
+    
+    // Assurer que les champs requis ont des valeurs par défaut
+    const courseData = {
+      ...req.body,
+      durationHours: req.body.durationHours || 0,
+      price: req.body.price || 0,
+    };
+    
+    const course = courseRepo.create(courseData);
     await courseRepo.save(course);
 
     res.status(201).json({ success: true, data: course });

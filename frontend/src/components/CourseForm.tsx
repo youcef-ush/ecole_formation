@@ -57,10 +57,9 @@ const categories = [
 ];
 
 const courseTypes = [
-  { value: 'Formation Qualifiante', label: '🎓 Formation Qualifiante (École Privée)' },
-  { value: 'Soutien Scolaire (Groupe)', label: '👥 Soutien Scolaire en Groupe' },
-  { value: 'Soutien Scolaire (Individuel)', label: '👤 Soutien Scolaire Individuel' },
-  { value: 'Soutien Scolaire (En ligne)', label: '💻 Soutien Scolaire en Ligne' },
+  { value: 'TUTORING_GROUP', label: '👥 Cours de Soutien (Groupe)' },
+  { value: 'TUTORING_INDIVIDUAL', label: '👤 Cours Individuel' },
+  { value: 'QUALIFYING', label: '🎓 Formation Qualifiante' },
 ];
 
 const certificates = [
@@ -71,27 +70,30 @@ const certificates = [
 ];
 
 const schoolLevels = [
-  { value: '1ère année primaire', label: '1ère année primaire' },
-  { value: '2ème année primaire', label: '2ème année primaire' },
-  { value: '3ème année primaire', label: '3ème année primaire' },
-  { value: '4ème année primaire', label: '4ème année primaire' },
-  { value: '5ème année primaire', label: '5ème année primaire' },
-  { value: '1ère année collège', label: '1ère année collège' },
-  { value: '2ème année collège', label: '2ème année collège' },
-  { value: '3ème année collège', label: '3ème année collège' },
-  { value: '4ème année collège (BEM)', label: '4ème année collège (BEM)' },
-  { value: '1ère année secondaire', label: '1ère année secondaire' },
-  { value: '2ème année secondaire', label: '2ème année secondaire' },
-  { value: '3ème année secondaire (BAC)', label: '3ème année secondaire (BAC)' },
+  // Primaire
+  { value: '1AP', label: '1ère année primaire', category: 'primaire' },
+  { value: '2AP', label: '2ème année primaire', category: 'primaire' },
+  { value: '3AP', label: '3ème année primaire', category: 'primaire' },
+  { value: '4AP', label: '4ème année primaire', category: 'primaire' },
+  { value: '5AP', label: '5ème année primaire', category: 'primaire' },
+  // Collège
+  { value: '1AM', label: '1ère année collège', category: 'college' },
+  { value: '2AM', label: '2ème année collège', category: 'college' },
+  { value: '3AM', label: '3ème année collège', category: 'college' },
+  { value: '4AM', label: '4ème année collège (BEM)', category: 'college' },
+  // Lycée
+  { value: '1AS', label: '1ère année secondaire', category: 'lycee' },
+  { value: '2AS', label: '2ème année secondaire', category: 'lycee' },
+  { value: '3AS', label: '3ème année secondaire (BAC)', category: 'lycee' },
 ];
 
 const lyceeBranches = [
-  { value: 'Sciences Expérimentales', label: 'Sciences Expérimentales' },
-  { value: 'Mathématiques', label: 'Mathématiques' },
-  { value: 'Techniques Mathématiques', label: 'Techniques Mathématiques' },
-  { value: 'Gestion et Économie', label: 'Gestion et Économie' },
-  { value: 'Lettres et Philosophie', label: 'Lettres et Philosophie' },
-  { value: 'Langues Étrangères', label: 'Langues Étrangères' },
+  { value: 'Sciences Expérimentales', label: 'Sciences Expérimentales', for: ['2AS', '3AS'] },
+  { value: 'Mathématiques', label: 'Mathématiques', for: ['2AS', '3AS'] },
+  { value: 'Techniques Mathématiques', label: 'Techniques Mathématiques', for: ['2AS', '3AS'] },
+  { value: 'Gestion et Économie', label: 'Gestion et Économie', for: ['2AS', '3AS'] },
+  { value: 'Lettres et Philosophie', label: 'Lettres et Philosophie', for: ['2AS', '3AS'] },
+  { value: 'Langues Étrangères', label: 'Langues Étrangères', for: ['2AS', '3AS'] },
 ];
 
 const subjectModules = [

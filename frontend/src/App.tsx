@@ -4,16 +4,15 @@ import Layout from './components/Layout/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Students from './pages/Students'
+import StudentDetail from './pages/StudentDetail'
 import Trainers from './pages/Trainers'
 import Courses from './pages/Courses'
 import Sessions from './pages/Sessions'
-import Enrollments from './pages/Enrollments'
 import Registrations from './pages/Registrations'
 import Rooms from './pages/Rooms'
 import TimeSlots from './pages/TimeSlots'
-import Finance from './pages/Finance'
-import MonthlyTracking from './pages/MonthlyTracking'
-import InstallmentPayments from './pages/InstallmentPayments'
+import PaymentSchedules from './pages/PaymentSchedules'
+import OverduePayments from './pages/OverduePayments'
 import PrintReceipt from './pages/PrintReceipt'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -36,14 +35,13 @@ function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="students" element={<Students />} />
+        <Route path="students/:id" element={<StudentDetail />} />
         <Route path="trainers" element={<Trainers />} />
         <Route path="courses" element={<Courses />} />
         <Route path="sessions" element={<Sessions />} />
-        <Route path="enrollments" element={<Enrollments />} />
         <Route path="registrations" element={<Registrations />} />
-        <Route path="finance" element={<Finance />} />
-        <Route path="monthly-tracking" element={<MonthlyTracking />} />
-        <Route path="installment-payments" element={<InstallmentPayments />} />
+        <Route path="payment-schedules" element={<PaymentSchedules />} />
+        <Route path="overdue-payments" element={<OverduePayments />} />
         <Route path="rooms" element={<Rooms />} />
         <Route path="timeslots" element={<TimeSlots />} />
       </Route>

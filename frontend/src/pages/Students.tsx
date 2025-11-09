@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Box,
@@ -20,6 +21,8 @@ import {
   Grid,
   TextField,
   InputAdornment,
+  Snackbar,
+  Alert,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
@@ -33,20 +36,57 @@ interface Student {
   phone: string
   dateOfBirth: string
   address: string
+  qrCode?: string
   createdAt: string
+  enrollments?: Array<{
+    id: number
+    course: {
+      title: string
+    }
+    session?: {
+      id: number
+    }
+  }>
 }
 
 export default function Students() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [openDetails, setOpenDetails] = useState(false)
   const [openEdit, setOpenEdit] = useState(false)
+  const [openAffectationDialog, setOpenAffectationDialog] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+  const [selectedCourseId, setSelectedCourseId] = useState('')
+  
+  // Snackbar notification states
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info',
+  })
+
+  const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info') => {
+    setSnackbar({ open: true, message, severity })
+  }
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false })
+  }
 
   const { data: students, isLoading } = useQuery<Student[]>({
     queryKey: ['students'],
     queryFn: async () => {
       const response = await api.get('/students')
+      return response.data.data || response.data
+    },
+  })
+
+  // Récupérer les formations pour le select
+  const { data: courses } = useQuery({
+    queryKey: ['courses'],
+    queryFn: async () => {
+      const response = await api.get('/courses')
       return response.data.data || response.data
     },
   })
@@ -63,9 +103,17 @@ export default function Students() {
     )
   }) || []
 
+  // Fonction pour obtenir la formation de l'étudiant
+  const getStudentCourse = (student: Student): string => {
+    if (!student.enrollments || student.enrollments.length === 0) {
+      return 'Autre formation'
+    }
+    // Retourner le titre de la première formation trouvée
+    return student.enrollments[0]?.course?.title || 'Autre formation'
+  }
+
   const handleRowClick = (student: Student) => {
-    setSelectedStudent(student)
-    setOpenDetails(true)
+    navigate(`/students/${student.id}`)
   }
 
   const handleEditClick = () => {
@@ -82,6 +130,32 @@ export default function Students() {
       queryClient.invalidateQueries({ queryKey: ['students'] })
       setOpenEdit(false)
       setSelectedStudent(null)
+      showNotification('✅ Étudiant modifié avec succès', 'success')
+    },
+    onError: (error: any) => {
+      showNotification(`❌ Erreur: ${error.response?.data?.message || 'Erreur lors de la modification'}`, 'error')
+    },
+  })
+
+  const affectationMutation = useMutation({
+    mutationFn: async ({ studentId, courseId }: { studentId: number; courseId: string }) => {
+      // Créer l'enrollment directement avec la formation
+      const response = await api.post('/enrollments', {
+        studentId,
+        courseId: parseInt(courseId),
+        notes: 'Affectation manuelle depuis la page étudiants',
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] })
+      setOpenAffectationDialog(false)
+      setSelectedCourseId('')
+      showNotification('✅ Étudiant affecté à la formation avec succès', 'success')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Erreur lors de l\'affectation'
+      showNotification(`❌ ${errorMessage}`, 'error')
     },
   })
 
@@ -94,6 +168,19 @@ export default function Students() {
       phone: formData.get('phone'),
       address: formData.get('address'),
     })
+  }
+
+  const handleAffectation = () => {
+    if (!selectedCourseId) {
+      showNotification('⚠️ Veuillez sélectionner une formation', 'warning')
+      return
+    }
+    if (selectedStudent) {
+      affectationMutation.mutate({
+        studentId: selectedStudent.id,
+        courseId: selectedCourseId,
+      })
+    }
   }
 
   if (isLoading) {
@@ -112,12 +199,9 @@ export default function Students() {
             Étudiants
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Gérez la liste de vos étudiants
+            Gérez les affectations de vos étudiants
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />}>
-          Ajouter un étudiant
-        </Button>
       </Box>
 
       {/* Barre de recherche */}
@@ -143,9 +227,9 @@ export default function Students() {
             <TableRow>
               <TableCell>ID</TableCell>
               <TableCell>Nom complet</TableCell>
-              <TableCell>Email</TableCell>
               <TableCell>Téléphone</TableCell>
-              <TableCell>Date de naissance</TableCell>
+              <TableCell>Formation</TableCell>
+              <TableCell>QR Code</TableCell>
               <TableCell>Statut</TableCell>
             </TableRow>
           </TableHead>
@@ -162,10 +246,19 @@ export default function Students() {
                   <TableCell>
                     {student.firstName} {student.lastName}
                   </TableCell>
-                  <TableCell>{student.email}</TableCell>
                   <TableCell>{student.phone}</TableCell>
                   <TableCell>
-                    {new Date(student.dateOfBirth).toLocaleDateString('fr-FR')}
+                    <Chip 
+                      label={getStudentCourse(student)} 
+                      color={getStudentCourse(student) === 'Autre formation' ? 'default' : 'primary'}
+                      size="small" 
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                      {student.qrCode || 'N/A'}
+                    </Typography>
                   </TableCell>
                   <TableCell>
                     <Chip label="Actif" color="success" size="small" />
@@ -254,6 +347,16 @@ export default function Students() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDetails(false)}>Fermer</Button>
+          <Button 
+            variant="outlined" 
+            color="success" 
+            onClick={() => {
+              setOpenDetails(false)
+              setOpenAffectationDialog(true)
+            }}
+          >
+            ➕ Ajouter une affectation
+          </Button>
           <Button variant="contained" color="primary" onClick={handleEditClick}>
             Modifier
           </Button>
@@ -334,6 +437,76 @@ export default function Students() {
           </DialogActions>
         </form>
       </Dialog>
+
+      {/* Dialog d'affectation à une formation */}
+      <Dialog open={openAffectationDialog} onClose={() => setOpenAffectationDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Typography variant="h6">➕ Ajouter une Affectation</Typography>
+        </DialogTitle>
+        <DialogContent>
+          {selectedStudent && (
+            <Box sx={{ mt: 2 }}>
+              <Paper sx={{ p: 2, bgcolor: 'primary.50', mb: 3 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Étudiant
+                </Typography>
+                <Typography variant="h6" color="primary">
+                  {selectedStudent.firstName} {selectedStudent.lastName}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  ID: #{selectedStudent.id}
+                </Typography>
+              </Paper>
+
+              <TextField
+                select
+                fullWidth
+                value={selectedCourseId}
+                onChange={(e) => setSelectedCourseId(e.target.value)}
+                helperText="L'étudiant sera affecté à la première session active de cette formation"
+                SelectProps={{
+                  native: true,
+                }}
+              >
+                <option value="">-- Sélectionner une formation --</option>
+                {courses && courses.map((course: any) => (
+                  <option key={course.id} value={course.id}>
+                    {course.title} ({course.type})
+                  </option>
+                ))}
+              </TextField>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setOpenAffectationDialog(false)
+            setSelectedCourseId('')
+          }} disabled={affectationMutation.isPending}>
+            Annuler
+          </Button>
+          <Button 
+            onClick={handleAffectation} 
+            variant="contained" 
+            color="success" 
+            disabled={affectationMutation.isPending}
+          >
+            {affectationMutation.isPending ? 'Affectation...' : 'Affecter'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar pour les notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

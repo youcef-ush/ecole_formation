@@ -16,7 +16,7 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const enrollmentRepo = AppDataSource.getRepository(Enrollment);
     const enrollments = await enrollmentRepo.find({
-      relations: ['student', 'session', 'session.course', 'payments'],
+      relations: ['student', 'course', 'session', 'session.course', 'payments'],
       order: { enrolledAt: 'DESC' },
     });
 
@@ -29,29 +29,40 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
 // POST /api/enrollments
 router.post('/', async (req: AuthRequest, res: Response, next) => {
   try {
-    const { studentId, sessionId, notes } = req.body;
+    const { studentId, courseId, sessionId, notes } = req.body;
+
+    if (!courseId) {
+      throw new AppError('Le courseId est requis', 400);
+    }
 
     const enrollmentRepo = AppDataSource.getRepository(Enrollment);
 
-    // Vérifier si l'étudiant est déjà inscrit
+    // Vérifier si l'étudiant est déjà inscrit à cette formation
     const existing = await enrollmentRepo.findOne({
-      where: { studentId, sessionId },
+      where: { studentId, courseId },
     });
 
     if (existing) {
-      throw new AppError('Étudiant déjà inscrit à cette session', 409);
+      throw new AppError('Étudiant déjà inscrit à cette formation', 409);
     }
 
     const enrollment = enrollmentRepo.create({
       studentId,
-      sessionId,
+      courseId,
+      sessionId: sessionId || null, // Session optionnelle
       notes,
       status: EnrollmentStatus.PENDING,
     });
 
     await enrollmentRepo.save(enrollment);
 
-    res.status(201).json({ success: true, data: enrollment });
+    // Retourner l'enrollment avec les relations
+    const savedEnrollment = await enrollmentRepo.findOne({
+      where: { id: enrollment.id },
+      relations: ['student', 'course', 'session'],
+    });
+
+    res.status(201).json({ success: true, data: savedEnrollment });
   } catch (error) {
     next(error);
   }

@@ -25,10 +25,10 @@ export enum CourseCategory {
 }
 
 export enum CourseType {
-  QUALIFYING = 'Formation Qualifiante',
-  TUTORING_GROUP = 'Soutien Scolaire (Groupe)',
-  TUTORING_INDIVIDUAL = 'Soutien Scolaire (Individuel)',
-  TUTORING_ONLINE = 'Soutien Scolaire (En ligne)',
+  QUALIFYING = 'QUALIFYING',
+  TUTORING_GROUP = 'TUTORING_GROUP',
+  TUTORING_INDIVIDUAL = 'TUTORING_INDIVIDUAL',
+  TUTORING_ONLINE = 'TUTORING_ONLINE',
 }
 
 export enum CourseCertificate {
@@ -128,6 +128,12 @@ export class Course {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   pricePerSession: number; // Pour les cours particuliers
+
+  @Column({ type: 'int', nullable: true })
+  durationMonths: number; // Durée en mois pour les échéanciers
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  pricePerMonth: number; // Prix mensuel pour les échéanciers
 
   @Column({ type: 'text', nullable: true })
   prerequisites: string;

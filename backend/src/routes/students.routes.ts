@@ -40,7 +40,7 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const studentRepo = AppDataSource.getRepository(Student);
     const students = await studentRepo.find({
-      relations: ['user'],
+      relations: ['user', 'enrollments', 'enrollments.course', 'enrollments.session'],
       order: { createdAt: 'DESC' },
     });
 
@@ -61,7 +61,7 @@ router.get('/:id', async (req: AuthRequest, res: Response, next) => {
 
     const student = await studentRepo.findOne({
       where: { id: parseInt(id) },
-      relations: ['user', 'enrollments', 'enrollments.session', 'enrollments.session.course'],
+      relations: ['user', 'enrollments', 'enrollments.course'],
     });
 
     if (!student) {

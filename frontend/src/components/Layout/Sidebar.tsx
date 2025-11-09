@@ -14,13 +14,11 @@ import SchoolIcon from '@mui/icons-material/School'
 import PersonIcon from '@mui/icons-material/Person'
 import BookIcon from '@mui/icons-material/Book'
 import EventIcon from '@mui/icons-material/Event'
-import AssignmentIcon from '@mui/icons-material/Assignment'
 import AppRegistrationIcon from '@mui/icons-material/AppRegistration'
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
-import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
-import PaymentsIcon from '@mui/icons-material/Payments'
+import ScheduleIcon from '@mui/icons-material/Schedule'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 interface SidebarProps {
@@ -31,15 +29,13 @@ interface SidebarProps {
 
 const menuItems = [
   { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/' },
+  { text: 'Inscriptions', icon: <AppRegistrationIcon />, path: '/registrations' },
   { text: 'Étudiants', icon: <SchoolIcon />, path: '/students' },
   { text: 'Formateurs', icon: <PersonIcon />, path: '/trainers' },
   { text: 'Formations', icon: <BookIcon />, path: '/courses' },
   { text: 'Sessions', icon: <EventIcon />, path: '/sessions' },
-  { text: 'Inscriptions', icon: <AppRegistrationIcon />, path: '/registrations' },
-  { text: 'Finance', icon: <AccountBalanceWalletIcon />, path: '/finance' },
-  { text: 'Suivi Mensuel', icon: <CalendarMonthIcon />, path: '/monthly-tracking' },
-  { text: 'Paiements Échelonnés', icon: <PaymentsIcon />, path: '/installment-payments' },
-  { text: 'Affectations', icon: <AssignmentIcon />, path: '/enrollments' },
+  { text: 'Échéanciers', icon: <ScheduleIcon />, path: '/payment-schedules' },
+  { text: 'Retards de Paiement', icon: <WarningAmberIcon />, path: '/overdue-payments' },
   { text: 'Salles', icon: <MeetingRoomIcon />, path: '/rooms' },
   { text: 'Créneaux', icon: <AccessTimeIcon />, path: '/timeslots' },
 ]

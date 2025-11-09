@@ -21,7 +21,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import api from '../services/api'
-import CourseForm from '../components/CourseForm'
+import CourseFormNew from '../components/CourseFormNew'
 
 interface Course {
   id: number
@@ -120,7 +120,7 @@ export default function Courses() {
         </Button>
       </Box>
 
-      <CourseForm open={openForm} onClose={() => setOpenForm(false)} />
+      <CourseFormNew open={openForm} onClose={() => setOpenForm(false)} />
 
       {/* Barre de recherche */}
       <Paper sx={{ p: 2, mb: 3 }}>

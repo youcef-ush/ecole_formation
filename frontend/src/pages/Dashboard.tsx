@@ -20,6 +20,8 @@ import BookIcon from '@mui/icons-material/Book'
 import PaidIcon from '@mui/icons-material/Paid'
 import EventIcon from '@mui/icons-material/Event'
 import AssignmentIcon from '@mui/icons-material/Assignment'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 
 interface DashboardStats {
@@ -57,7 +59,24 @@ interface PendingRegistration {
   createdAt: string
 }
 
+interface OverduePayment {
+  id: number
+  dueDate: string
+  amount: string
+  paidAmount: string
+  enrollment: {
+    student: {
+      firstName: string
+      lastName: string
+    }
+    course: {
+      title: string
+    }
+  }
+}
+
 export default function Dashboard() {
+  const navigate = useNavigate()
   const { data: stats, isLoading, error } = useQuery<DashboardStats>({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
@@ -89,6 +108,15 @@ export default function Dashboard() {
       const response = await api.get('/registrations?status=En attente de paiement')
       const registrations = response.data.data || response.data
       return registrations.slice(0, 5)
+    },
+  })
+
+  // Paiements en retard
+  const { data: overduePayments } = useQuery<OverduePayment[]>({
+    queryKey: ['overdue-payments-widget'],
+    queryFn: async () => {
+      const response = await api.get('/payment-schedules/overdue')
+      return (response.data || []).slice(0, 5)
     },
   })
 
@@ -295,6 +323,85 @@ export default function Dashboard() {
                         <TableCell colSpan={4} align="center">
                           <Typography variant="body2" color="text.secondary">
                             Aucune tâche en attente
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Paiements en retard */}
+        <Grid item xs={12}>
+          <Card sx={{ bgcolor: overduePayments && overduePayments.length > 0 ? 'error.light' : 'background.paper' }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <WarningAmberIcon color="error" />
+                  <Typography variant="h6" fontWeight={600}>
+                    Paiements en retard
+                  </Typography>
+                  {overduePayments && overduePayments.length > 0 && (
+                    <Chip 
+                      label={overduePayments.length} 
+                      color="error" 
+                      size="small" 
+                    />
+                  )}
+                </Box>
+                <Typography 
+                  variant="body2" 
+                  color="primary" 
+                  sx={{ cursor: 'pointer', textDecoration: 'underline' }}
+                  onClick={() => navigate('/overdue-payments')}
+                >
+                  Voir tout
+                </Typography>
+              </Box>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Étudiant</TableCell>
+                      <TableCell>Formation</TableCell>
+                      <TableCell>Date d'échéance</TableCell>
+                      <TableCell align="right">Montant dû</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {overduePayments && overduePayments.length > 0 ? (
+                      overduePayments.map((payment) => {
+                        const totalAmount = parseFloat(payment.amount);
+                        const paidAmount = parseFloat(payment.paidAmount);
+                        const remaining = totalAmount - paidAmount;
+                        
+                        return (
+                          <TableRow key={payment.id}>
+                            <TableCell>
+                              {payment.enrollment.student.firstName} {payment.enrollment.student.lastName}
+                            </TableCell>
+                            <TableCell>{payment.enrollment.course.title}</TableCell>
+                            <TableCell>
+                              <Typography variant="body2" color="error">
+                                {new Date(payment.dueDate).toLocaleDateString('fr-FR')}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2" fontWeight="bold" color="error">
+                                {remaining.toLocaleString('fr-DZ')} DA
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">
+                          <Typography variant="body2" color="success.main" fontWeight="500">
+                            ✓ Aucun paiement en retard - Tous les étudiants sont à jour !
                           </Typography>
                         </TableCell>
                       </TableRow>
