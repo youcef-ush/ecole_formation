@@ -1,0 +1,9 @@
+Phase,Nom,Tâches,Durée (h),Priorité,Dépendances,Livrables Clés,Statut
+1,Base de Données,1-10,4,HAUTE,Aucune,"Entités: Student/Session modifiées, Attendance/AttendanceReport créées. 4 migrations SQL exécutées",À faire
+2,Services Backend,11-14,6,HAUTE,Phase 1,"QrCodeService, AccessControlService, AttendanceService. Package qrcode installé",À faire
+3,API Routes,15-18,4.5,HAUTE,Phase 2,"attendance.routes.ts créé. students.routes.ts et registrations.routes.ts modifiés. app.ts mis à jour",À faire
+4,Frontend - Scanner,19-23,3.5,HAUTE,Phase 3,"QRScanner.tsx complet avec feedback visuel/sonore. Package html5-qrcode installé. Routes et menu mis à jour",À faire
+5,Frontend - Gestion,24-27,3.8,MOYENNE,Phase 4,"AttendanceManagement.tsx créé. StudentDetail.tsx mis à jour pour badge backend. Routes et menu mis à jour",À faire
+6,Dashboard Stats,28-30,3,MOYENNE,Phase 5,"Widgets présences dans Dashboard.tsx. Endpoint /api/dashboard/attendance-stats créé",À faire
+7,Tests & Validation,31-41,5.25,HAUTE,Phases 1-6,"Suite tests complète. Tous scénarios validés. Bug fixes effectués",À faire
+8,Documentation,42-45,1.75,MOYENNE,Phase 7,"ATTENDANCE_API.md, WORKFLOW_QR_SCAN.md, USER_GUIDE_QR.md créés",À faire

@@ -37,7 +37,27 @@ export class Student {
   @Column({ nullable: true })
   postalCode: string;
 
-  // Code QR unique pour chaque étudiant (généré automatiquement)
+  // Badge QR Code (généré lors de la validation de l'inscription)
+  @Column({ unique: true, nullable: true })
+  badgeQrCode: string;
+
+  // Date d'expiration du badge (renouvelable chaque année)
+  @Column({ type: 'date', nullable: true })
+  badgeExpiry: Date;
+
+  // Statut actif/inactif de l'étudiant
+  @Column({ default: true })
+  isActive: boolean;
+
+  // Contact d'urgence
+  @Column({ nullable: true })
+  emergencyContact: string;
+
+  // Niveau scolaire (ex: "Lycée", "Université", "Professionnel")
+  @Column({ nullable: true })
+  schoolLevel: string;
+
+  // Code QR unique pour chaque étudiant (DÉPRÉCIÉ - utiliser badgeQrCode)
   @Column({ unique: true, nullable: true })
   qrCode: string;
 

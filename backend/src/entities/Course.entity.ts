@@ -135,6 +135,12 @@ export class Course {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   pricePerMonth: number; // Prix mensuel pour les échéanciers
 
+  @Column({ type: 'date', nullable: true })
+  startDate: Date; // Date de début de la formation
+
+  @Column({ type: 'date', nullable: true })
+  endDate: Date; // Date de fin de la formation
+
   @Column({ type: 'text', nullable: true })
   prerequisites: string;
 

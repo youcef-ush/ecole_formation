@@ -1,0 +1,19 @@
+Module,Backend,Frontend,Base de Données,Tests,Progression (%),Statut,Ce qui manque
+Authentification,auth.routes.ts,Login.tsx,users table,Complets,100,✅ COMPLET,Rien
+Formations (Courses),courses.routes.ts,Courses.tsx,courses table,Complets,100,✅ COMPLET,Rien
+Salles,rooms.routes.ts,Rooms.tsx,rooms table,Complets,100,✅ COMPLET,Rien
+Créneaux Horaires,timeslots.routes.ts,TimeSlots.tsx,time_slots table,Complets,100,✅ COMPLET,Rien
+Formateurs,trainers.routes.ts,Trainers.tsx,trainers table,Complets,100,✅ COMPLET,Rien
+Sessions,sessions.routes.ts,Sessions.tsx,"sessions table (avec enrolledCount)",Complets,100,✅ COMPLET,Rien
+Inscriptions,registrations.routes.ts,Registrations.tsx,registrations table,Partiels,90,🟡 PARTIEL,Génération badge QR backend
+Étudiants,students.routes.ts,Students.tsx + StudentDetail.tsx,students table (manque champs QR),Partiels,85,🟡 PARTIEL,"Champs QR backend, badge expiry"
+Affectations (Enrollments),enrollments.routes.ts,Enrollments.tsx,enrollments table,Partiels,85,🟡 PARTIEL,Page frontend à nettoyer
+Échéanciers de Paiement,payment-schedules.routes.ts,PaymentSchedules.tsx,payment_schedules table,Complets,95,🟡 PARTIEL,Auto-génération lors validation inscription
+Paiements,payments.routes.ts,Finance.tsx + FinanceNew.tsx,payment_transactions table,Partiels,80,🟡 PARTIEL,Nettoyage pages doublons
+Retards de Paiement,Dans payment-schedules,OverduePayments.tsx,Utilise payment_schedules,Partiels,90,🟡 PARTIEL,Tests complets
+Dashboard,dashboard.routes.ts,Dashboard.tsx,N/A,Partiels,70,🟡 PARTIEL,Widgets présences manquants
+Génération Auto Sessions,❌ Aucun,❌ N/A,"sessions table (OK, lié à course)",❌ Aucun,0,❌ À CRÉER,"SessionGeneratorService: 3 patterns (TUTORING Sep-Juin, QUALIFYING N mois, SHORT 1-2 sessions)"
+Système QR Code,❌ Aucun,QR frontend seulement,❌ Champs manquants,❌ Aucun,0,❌ À CRÉER,Tout à créer
+Gestion des Présences,❌ Aucun,❌ Aucun,❌ attendance table,❌ Aucun,0,❌ À CRÉER,Tout à créer
+Scan QR Présences,❌ Aucun,❌ Aucun,❌ Manque entités,❌ Aucun,0,❌ À CRÉER,Tout à créer
+Rapports Présences,❌ Aucun,❌ Aucun,❌ attendance_reports table,❌ Aucun,0,❌ À CRÉER,Tout à créer

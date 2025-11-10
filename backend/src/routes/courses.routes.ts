@@ -4,6 +4,9 @@ import { Course } from '../entities/Course.entity';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
 import { UserRole } from '../entities/User.entity';
 import { AppError } from '../middleware/error.middleware';
+import { SessionGeneratorService } from '../services/session-generator.service';
+import { PaymentScheduleService } from '../services/payment-schedule.service';
+import { Enrollment } from '../entities/Enrollment.entity';
 
 const router = Router();
 
@@ -124,6 +127,20 @@ router.get('/:id', async (req: AuthRequest, res: Response, next) => {
  *               timeSlotId:
  *                 type: integer
  *                 description: ID du créneau horaire
+ *               startDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Date de début de la formation (requis pour auto-génération)
+ *               endDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Date de fin de la formation (optionnel pour TUTORING)
+ *               autoGenerateSessions:
+ *                 type: boolean
+ *                 description: Générer automatiquement les sessions (défaut true)
+ *               autoGeneratePayments:
+ *                 type: boolean
+ *                 description: Générer automatiquement les échéanciers pour les enrollments existants (défaut true)
  *     responses:
  *       201:
  *         description: Formation créée avec succès
@@ -131,6 +148,7 @@ router.get('/:id', async (req: AuthRequest, res: Response, next) => {
 router.post('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const courseRepo = AppDataSource.getRepository(Course);
+    const enrollmentRepo = AppDataSource.getRepository(Enrollment);
     
     // Assurer que les champs requis ont des valeurs par défaut
     const courseData = {
@@ -139,10 +157,76 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
       price: req.body.price || 0,
     };
     
-    const course = courseRepo.create(courseData);
-    await courseRepo.save(course);
+    const newCourse = courseRepo.create(courseData);
+    const savedCourse = await courseRepo.save(newCourse);
+    
+    // Normaliser en objet unique si c'est un tableau
+    const course = Array.isArray(savedCourse) ? savedCourse[0] : savedCourse;
 
-    res.status(201).json({ success: true, data: course });
+    // 🔥 AUTO-GÉNÉRATION DES SESSIONS (Task 10.4)
+    const autoGenerateSessions = req.body.autoGenerateSessions !== false; // Par défaut true
+    let generatedSessions: any[] = [];
+    
+    if (autoGenerateSessions && course.startDate) {
+      try {
+        const sessionGenerator = new SessionGeneratorService();
+        generatedSessions = await sessionGenerator.generateSessionsForCourse(
+          course.id,
+          new Date(course.startDate),
+          course.endDate ? new Date(course.endDate) : undefined
+        );
+        console.log(`✅ ${generatedSessions.length} sessions générées pour la formation "${course.title}"`);
+      } catch (sessionError) {
+        // Log l'erreur mais ne bloque pas la création de la formation
+        console.error('❌ Erreur génération sessions:', sessionError);
+      }
+    }
+
+    // 🔥 AUTO-GÉNÉRATION DES ÉCHÉANCIERS POUR LES ENROLLMENTS EXISTANTS (Task 10.4)
+    const autoGeneratePayments = req.body.autoGeneratePayments !== false; // Par défaut true
+    let generatedSchedulesCount = 0;
+    
+    if (autoGeneratePayments && course.startDate) {
+      try {
+        const paymentScheduleService = new PaymentScheduleService();
+        
+        // Récupérer tous les enrollments liés à cette formation
+        const enrollments = await enrollmentRepo.find({
+          where: { courseId: course.id },
+        });
+
+        // Générer l'échéancier pour chaque enrollment
+        for (const enrollment of enrollments) {
+          const hasSchedules = await paymentScheduleService.hasPaymentSchedules(enrollment.id);
+          
+          if (!hasSchedules) {
+            await paymentScheduleService.generatePaymentSchedule(
+              enrollment.id,
+              course.id,
+              new Date(course.startDate),
+              course.endDate ? new Date(course.endDate) : undefined
+            );
+            generatedSchedulesCount++;
+          }
+        }
+        
+        if (generatedSchedulesCount > 0) {
+          console.log(`✅ Échéanciers générés pour ${generatedSchedulesCount} enrollment(s)`);
+        }
+      } catch (paymentError) {
+        // Log l'erreur mais ne bloque pas la création de la formation
+        console.error('❌ Erreur génération échéanciers:', paymentError);
+      }
+    }
+
+    res.status(201).json({ 
+      success: true, 
+      data: course,
+      generated: {
+        sessions: generatedSessions.length,
+        paymentSchedules: generatedSchedulesCount,
+      }
+    });
   } catch (error) {
     next(error);
   }

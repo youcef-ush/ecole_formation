@@ -75,6 +75,22 @@ export class Session {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  // QR Code unique pour cette session (généré automatiquement)
+  @Column({ unique: true, nullable: true })
+  sessionQrCode: string;
+
+  // Date d'expiration du QR code de la session (généralement valide le jour de la session)
+  @Column({ type: 'timestamp', nullable: true })
+  qrExpiresAt: Date;
+
+  // Nombre d'étudiants présents actuellement (mis à jour par le système de présence)
+  @Column({ type: 'int', default: 0 })
+  currentAttendance: number;
+
+  // Statut actif/inactif de la session
+  @Column({ default: true })
+  isActive: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -109,7 +125,4 @@ export class Session {
 
   @Column({ nullable: true })
   timeSlotId: number;
-
-  @OneToMany(() => Enrollment, (enrollment) => enrollment.session)
-  enrollments: Enrollment[];
 }

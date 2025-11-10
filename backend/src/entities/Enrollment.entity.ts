@@ -9,7 +9,6 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Student } from './Student.entity';
-import { Session } from './Session.entity';
 import { Course } from './Course.entity';
 import { Payment } from './Payment.entity';
 
@@ -52,15 +51,8 @@ export class Enrollment {
   @JoinColumn({ name: 'courseId' })
   course: Course;
 
-  @Column({ nullable: true })
+  @Column()
   courseId: number;
-
-  @ManyToOne(() => Session, (session) => session.enrollments, { nullable: true })
-  @JoinColumn({ name: 'sessionId' })
-  session: Session;
-
-  @Column({ nullable: true })
-  sessionId: number;
 
   @OneToMany(() => Payment, (payment) => payment.enrollment)
   payments: Payment[];
