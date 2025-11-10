@@ -46,7 +46,7 @@ interface Session {
   startTime?: string
   endTime?: string
   capacity: number
-  currentEnrollments: number
+  enrolledCount: number
   status: 'planned' | 'ongoing' | 'completed' | 'cancelled'
   monthLabel?: string
   price?: number
@@ -385,7 +385,17 @@ export default function Sessions() {
                     {session.price ? `${session.price.toLocaleString()} DA` : '-'}
                   </TableCell>
                   <TableCell>
-                    {session.currentEnrollments || 0} / {session.capacity}
+                    <Chip 
+                      label={`${session.enrolledCount || 0} / ${session.capacity}`}
+                      color={
+                        (session.enrolledCount || 0) >= session.capacity 
+                          ? 'error' 
+                          : (session.enrolledCount || 0) >= session.capacity * 0.8 
+                            ? 'warning' 
+                            : 'success'
+                      }
+                      size="small"
+                    />
                   </TableCell>
                   <TableCell>
                     <Chip

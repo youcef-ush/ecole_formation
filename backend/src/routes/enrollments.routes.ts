@@ -142,7 +142,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
 
     const enrollment = await enrollmentRepo.findOne({
       where: { id: parseInt(id) },
-      relations: ['payments'],
+      relations: ['payments', 'session'],
     });
 
     if (!enrollment) {
@@ -152,6 +152,21 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
     // Vérifier s'il y a des paiements associés
     if (enrollment.payments && enrollment.payments.length > 0) {
       throw new AppError('Impossible de supprimer une inscription avec des paiements associés', 400);
+    }
+
+    // NOUVEAU : Décrémenter le compteur de la session si elle existe
+    if (enrollment.sessionId && enrollment.session) {
+      const Session = (await import('../entities/Session.entity')).Session;
+      const sessionRepo = AppDataSource.getRepository(Session);
+      const session = await sessionRepo.findOne({
+        where: { id: enrollment.sessionId }
+      });
+      
+      if (session && session.enrolledCount > 0) {
+        session.enrolledCount = session.enrolledCount - 1;
+        await sessionRepo.save(session);
+        console.log(`✅ Session #${session.id} : ${session.enrolledCount}/${session.capacity} places occupées (après suppression)`);
+      }
     }
 
     await enrollmentRepo.remove(enrollment);

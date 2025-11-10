@@ -92,6 +92,7 @@ const PaymentSchedules: React.FC = () => {
     queryFn: async () => {
       const params = statusFilter ? `?status=${statusFilter}` : '';
       const response = await api.get(`/payment-schedules${params}`);
+      console.log('Échéanciers reçus:', response.data);
       return response.data as PaymentSchedule[];
     },
   });

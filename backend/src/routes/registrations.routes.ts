@@ -498,6 +498,26 @@ router.post('/:id/validate', authenticate, authorize(UserRole.ADMIN), async (req
     // Créer automatiquement l'affectation (enrollment) à la session SI une session existe
     let enrollment = null;
     if (refreshedRegistration.sessionId) {
+      // Vérifier d'abord la capacité de la session
+      const Session = (await import('../entities/Session.entity')).Session;
+      const sessionRepo = AppDataSource.getRepository(Session);
+      const session = await sessionRepo.findOne({
+        where: { id: refreshedRegistration.sessionId }
+      });
+
+      if (!session) {
+        throw new Error('Session non trouvée');
+      }
+
+      // Vérifier si la session est pleine
+      const enrolledCount = session.enrolledCount || 0;
+      if (enrolledCount >= session.capacity) {
+        return res.status(400).json({
+          success: false,
+          message: `La session est complète (${session.capacity}/${session.capacity} places)`,
+        });
+      }
+
       enrollment = enrollmentRepository.create({
         studentId: student.id,
         sessionId: refreshedRegistration.sessionId,
@@ -506,6 +526,49 @@ router.post('/:id/validate', authenticate, authorize(UserRole.ADMIN), async (req
       });
 
       await enrollmentRepository.save(enrollment);
+
+      // NOUVEAU : Incrémenter le compteur enrolledCount de la session
+      session.enrolledCount = enrolledCount + 1;
+      await sessionRepo.save(session);
+      console.log(`✅ Session #${session.id} : ${session.enrolledCount}/${session.capacity} places occupées`);
+
+      // NOUVEAU : Générer automatiquement les échéanciers de paiement
+      const course = refreshedRegistration.course;
+      if (course && course.durationMonths && course.pricePerMonth) {
+        try {
+          const PaymentSchedule = (await import('../entities/PaymentSchedule.entity')).PaymentSchedule;
+          const PaymentScheduleStatus = (await import('../entities/PaymentSchedule.entity')).PaymentScheduleStatus;
+          const scheduleRepo = AppDataSource.getRepository(PaymentSchedule);
+          
+          const enrollmentDate = new Date();
+          const durationMonths = course.durationMonths;
+          const pricePerMonth = parseFloat(course.pricePerMonth.toString());
+
+          // Générer les échéanciers mensuels
+          const schedules: any[] = [];
+          for (let i = 1; i <= durationMonths; i++) {
+            const dueDate = new Date(enrollmentDate);
+            dueDate.setMonth(dueDate.getMonth() + i);
+            
+            const schedule = scheduleRepo.create({
+              enrollmentId: enrollment.id,
+              installmentNumber: i,
+              amount: pricePerMonth,
+              dueDate: dueDate,
+              status: PaymentScheduleStatus.EN_ATTENTE,
+              paidAmount: 0,
+            });
+            
+            schedules.push(schedule);
+          }
+          
+          await scheduleRepo.save(schedules);
+          console.log(`✅ ${schedules.length} échéanciers générés automatiquement pour l'enrollment #${enrollment.id}`);
+        } catch (scheduleError) {
+          console.error('❌ Erreur lors de la génération des échéanciers:', scheduleError);
+          // On ne bloque pas la validation si les échéanciers échouent
+        }
+      }
     }
 
     // Mettre à jour l'inscription

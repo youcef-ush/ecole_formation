@@ -55,6 +55,9 @@ export class Session {
   @Column({ type: 'int' })
   capacity: number;
 
+  @Column({ type: 'int', default: 0 })
+  enrolledCount: number;
+
   @Column()
   location: string;
 
