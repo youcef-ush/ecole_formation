@@ -36,29 +36,42 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
       },
       relations: [
         'course', 
-        'trainer', 
-        'enrollments',
-        'enrollments.student'
+        'trainer',
+        'roomEntity',
+        'timeSlotEntity',
       ],
       order: { startDate: 'ASC' },
     });
 
-    // Charger les sessionPayments pour chaque session
+    // Charger les enrollments et sessionPayments pour chaque session
+    const enrollmentRepo = AppDataSource.getRepository(Enrollment);
+    
     for (const session of sessions) {
-      if (session.enrollments && session.enrollments.length > 0) {
-        const studentIds = session.enrollments.map(e => e.studentId);
-        const payments = await sessionPaymentRepo.find({
-          where: {
-            sessionId: session.id,
-            studentId: In(studentIds),
-          },
+      if (session.course) {
+        // Récupérer les enrollments pour cette formation
+        const enrollments = await enrollmentRepo.find({
+          where: { courseId: session.course.id },
+          relations: ['student'],
         });
 
-        // Ajouter les payments aux enrollments correspondants
-        for (const enrollment of session.enrollments) {
-          (enrollment as any).sessionPayments = payments.filter(
-            p => p.studentId === enrollment.studentId
-          );
+        if (enrollments.length > 0) {
+          const studentIds = enrollments.map(e => e.studentId);
+          const payments = await sessionPaymentRepo.find({
+            where: {
+              sessionId: session.id,
+              studentId: In(studentIds),
+            },
+          });
+
+          // Ajouter les payments aux enrollments correspondants
+          for (const enrollment of enrollments) {
+            (enrollment as any).sessionPayments = payments.filter(
+              p => p.studentId === enrollment.studentId
+            );
+          }
+          
+          // Ajouter les enrollments à la session pour le retour
+          (session as any).enrollments = enrollments;
         }
       }
     }

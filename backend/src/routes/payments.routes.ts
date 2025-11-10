@@ -22,8 +22,9 @@ const paymentRepository = AppDataSource.getRepository(Payment);
  */
 router.get('/', authenticate, async (req: Request, res: Response) => {
   try {
+    // Enrollment n'a plus de relation 'session', seulement 'course'
     const payments = await paymentRepository.find({
-      relations: ['enrollment', 'enrollment.student', 'enrollment.session', 'enrollment.session.course'],
+      relations: ['enrollment', 'enrollment.student', 'enrollment.course'],
       order: { paymentDate: 'DESC' },
     });
 
@@ -31,7 +32,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
     const paymentsWithCourse = payments.map((payment) => ({
       ...payment,
       student: payment.enrollment?.student || null,
-      course: payment.enrollment?.session?.course || null,
+      course: payment.enrollment?.course || null,
     }));
 
     res.json({

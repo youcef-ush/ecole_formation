@@ -75,6 +75,20 @@ interface OverduePayment {
   }
 }
 
+interface AttendanceStats {
+  totalSessions: number
+  totalAttendances: number
+  attendanceRate: number
+}
+
+interface AbsentStudent {
+  studentId: number
+  studentName: string
+  absenceCount: number
+  consecutiveAbsences: number
+  lastAbsenceDate: string
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { data: stats, isLoading, error } = useQuery<DashboardStats>({
@@ -117,6 +131,25 @@ export default function Dashboard() {
     queryFn: async () => {
       const response = await api.get('/payment-schedules/overdue')
       return (response.data || []).slice(0, 5)
+    },
+  })
+
+  // Stats présences (Tâche 28)
+  const { data: attendanceStats } = useQuery<AttendanceStats>({
+    queryKey: ['attendance-stats'],
+    queryFn: async () => {
+      const response = await api.get('/dashboard/attendance-stats')
+      return response.data.data || response.data || { totalSessions: 0, totalAttendances: 0, attendanceRate: 0 }
+    },
+  })
+
+  // Alertes absences répétées (Tâche 29)
+  const { data: absentStudents } = useQuery<AbsentStudent[]>({
+    queryKey: ['absent-students'],
+    queryFn: async () => {
+      const response = await api.get('/dashboard/attendance-stats')
+      const data = response.data.data || response.data
+      return data.absentStudents || []
     },
   })
 
@@ -224,6 +257,98 @@ export default function Dashboard() {
               <Typography variant="body2" color="text.secondary">
                 Sessions programmées
               </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Widget Taux Présence Global (Tâche 28) */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <AssignmentIcon color="success" />
+                <Typography variant="h6" fontWeight={600}>
+                  Taux de Présence Global
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center', py: 2 }}>
+                <Typography 
+                  variant="h2" 
+                  fontWeight={700}
+                  sx={{ 
+                    color: (attendanceStats?.attendanceRate || 0) >= 80 ? 'success.main' : 
+                           (attendanceStats?.attendanceRate || 0) >= 60 ? 'warning.main' : 'error.main'
+                  }}
+                >
+                  {attendanceStats?.attendanceRate?.toFixed(1) || 0}%
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  {attendanceStats?.totalAttendances || 0} présences sur {attendanceStats?.totalSessions || 0} sessions
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Widget Alertes Absences Répétées (Tâche 29) */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <WarningAmberIcon color="error" />
+                <Typography variant="h6" fontWeight={600}>
+                  Alertes Absences Répétées
+                </Typography>
+              </Box>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Étudiant</TableCell>
+                      <TableCell align="center">Absences</TableCell>
+                      <TableCell align="center">Consécutives</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {absentStudents && absentStudents.length > 0 ? (
+                      absentStudents.slice(0, 5).map((student) => (
+                        <TableRow key={student.studentId}>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={500}>
+                              {student.studentName}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Dernière absence: {new Date(student.lastAbsenceDate).toLocaleDateString('fr-FR')}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip 
+                              label={student.absenceCount} 
+                              size="small" 
+                              color="error"
+                            />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip 
+                              label={student.consecutiveAbsences} 
+                              size="small" 
+                              color={student.consecutiveAbsences >= 3 ? 'error' : 'warning'}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} align="center">
+                          <Typography variant="body2" color="text.secondary">
+                            ✅ Aucune absence répétée
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </CardContent>
           </Card>
         </Grid>

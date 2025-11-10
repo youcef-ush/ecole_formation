@@ -4,9 +4,11 @@ import { Student } from '../entities/Student.entity';
 import { User, UserRole } from '../entities/User.entity';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
 import { AppError } from '../middleware/error.middleware';
+import { QrCodeService } from '../services/qrcode.service';
 import bcrypt from 'bcrypt';
 
 const router = Router();
+const qrCodeService = new QrCodeService();
 
 // Protect all routes
 router.use(authenticate);
@@ -191,6 +193,182 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
     res.json({
       success: true,
       message: 'Étudiant supprimé avec succès',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/students/{id}/generate-badge:
+ *   post:
+ *     summary: Générer ou renouveler le badge QR code d'un étudiant
+ *     tags: [Étudiants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de l'étudiant
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               validityMonths:
+ *                 type: integer
+ *                 description: Durée de validité en mois (défaut 12 mois)
+ *                 default: 12
+ *     responses:
+ *       200:
+ *         description: Badge généré avec succès
+ *       404:
+ *         description: Étudiant non trouvé
+ */
+router.post('/:id/generate-badge', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const { id } = req.params;
+    const { validityMonths = 12 } = req.body;
+
+    const studentRepo = AppDataSource.getRepository(Student);
+    const student = await studentRepo.findOne({
+      where: { id: parseInt(id) },
+      relations: ['user'],
+    });
+
+    if (!student) {
+      throw new AppError('Étudiant non trouvé', 404);
+    }
+
+    // Générer le badge QR code
+    const qrCodeDataUrl = await qrCodeService.generateStudentBadge(student.id, validityMonths);
+
+    // Calculer la date d'expiration
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + validityMonths);
+
+    // Mettre à jour l'étudiant avec le nouveau badge
+    student.badgeQrCode = qrCodeDataUrl;
+    student.badgeExpiry = expiresAt;
+    await studentRepo.save(student);
+
+    res.json({
+      success: true,
+      message: 'Badge généré avec succès',
+      data: {
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        badgeQrCode: qrCodeDataUrl,
+        badgeExpiry: expiresAt,
+        validityMonths,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/students/{id}/revoke-badge:
+ *   put:
+ *     summary: Révoquer le badge QR code d'un étudiant
+ *     tags: [Étudiants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de l'étudiant
+ *     responses:
+ *       200:
+ *         description: Badge révoqué avec succès
+ *       404:
+ *         description: Étudiant non trouvé
+ */
+router.put('/:id/revoke-badge', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const { id } = req.params;
+
+    const studentRepo = AppDataSource.getRepository(Student);
+    const student = await studentRepo.findOne({
+      where: { id: parseInt(id) },
+    });
+
+    if (!student) {
+      throw new AppError('Étudiant non trouvé', 404);
+    }
+
+    // Révoquer le badge
+    await qrCodeService.revokeStudentBadge(student.id);
+
+    // Mettre à jour l'étudiant
+    student.badgeQrCode = null;
+    student.badgeExpiry = null;
+    await studentRepo.save(student);
+
+    res.json({
+      success: true,
+      message: 'Badge révoqué avec succès',
+      data: {
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/students/validate-badge/{qrCode}:
+ *   get:
+ *     summary: Valider un badge QR code étudiant
+ *     tags: [Étudiants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: qrCode
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: QR code du badge étudiant
+ *     responses:
+ *       200:
+ *         description: Badge valide
+ *       400:
+ *         description: Badge invalide ou expiré
+ *       404:
+ *         description: Étudiant non trouvé
+ */
+router.get('/validate-badge/:qrCode', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const { qrCode } = req.params;
+
+    // Valider le QR code via le service (throw AppError si invalide)
+    const student = await qrCodeService.validateStudentQr(qrCode);
+
+    res.json({
+      success: true,
+      message: 'Badge valide',
+      data: {
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        email: student.user?.email,
+        phone: student.phone,
+        isActive: student.isActive,
+        badgeExpiry: student.badgeExpiry,
+      },
     });
   } catch (error) {
     next(error);

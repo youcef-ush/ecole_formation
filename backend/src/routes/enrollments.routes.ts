@@ -49,7 +49,6 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
     const enrollment = enrollmentRepo.create({
       studentId,
       courseId,
-      sessionId: sessionId || null, // Session optionnelle
       notes,
       status: EnrollmentStatus.PENDING,
     });
@@ -59,7 +58,7 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
     // Retourner l'enrollment avec les relations
     const savedEnrollment = await enrollmentRepo.findOne({
       where: { id: enrollment.id },
-      relations: ['student', 'course', 'session'],
+      relations: ['student', 'course'],
     });
 
     res.status(201).json({ success: true, data: savedEnrollment });
@@ -154,20 +153,8 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
       throw new AppError('Impossible de supprimer une inscription avec des paiements associés', 400);
     }
 
-    // NOUVEAU : Décrémenter le compteur de la session si elle existe
-    if (enrollment.sessionId && enrollment.session) {
-      const Session = (await import('../entities/Session.entity')).Session;
-      const sessionRepo = AppDataSource.getRepository(Session);
-      const session = await sessionRepo.findOne({
-        where: { id: enrollment.sessionId }
-      });
-      
-      if (session && session.enrolledCount > 0) {
-        session.enrolledCount = session.enrolledCount - 1;
-        await sessionRepo.save(session);
-        console.log(`✅ Session #${session.id} : ${session.enrolledCount}/${session.capacity} places occupées (après suppression)`);
-      }
-    }
+    // Note: Plus de logique de session car Enrollment n'a plus de sessionId
+    // Les sessions sont gérées séparément via Course
 
     await enrollmentRepo.remove(enrollment);
 

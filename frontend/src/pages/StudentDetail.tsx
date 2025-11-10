@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -25,7 +25,6 @@ import {
   Print,
   Badge as BadgeIcon,
 } from '@mui/icons-material';
-import QRCode from 'qrcode';
 import api from '../services/api';
 
 interface Student {
@@ -41,6 +40,8 @@ interface Student {
     email: string;
   };
   qrCode: string;
+  badgeQrCode?: string; // QR code image depuis backend
+  badgeExpiry?: string; // Date d'expiration
   enrollments?: Enrollment[];
 }
 
@@ -65,8 +66,9 @@ export default function StudentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [badgeOpen, setBadgeOpen] = useState(false);
+  const [renewLoading, setRenewLoading] = useState(false);
 
-  const { data: student, isLoading } = useQuery<Student>({
+  const { data: student, isLoading, refetch } = useQuery<Student>({
     queryKey: ['student', id],
     queryFn: async () => {
       const response = await api.get(`/students/${id}`);
@@ -79,6 +81,37 @@ export default function StudentDetail() {
     setTimeout(() => {
       window.print();
     }, 500);
+  };
+
+  const handleRenewBadge = async () => {
+    if (!window.confirm('Voulez-vous vraiment renouveler le badge de cet étudiant ? (Validité: 12 mois)')) {
+      return;
+    }
+    
+    setRenewLoading(true);
+    try {
+      await api.post(`/students/${id}/generate-badge`, { validityMonths: 12 });
+      alert('Badge renouvelé avec succès !');
+      refetch(); // Recharger les données
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Erreur lors du renouvellement du badge');
+    } finally {
+      setRenewLoading(false);
+    }
+  };
+
+  const handleRevokeBadge = async () => {
+    if (!window.confirm('Voulez-vous vraiment révoquer le badge de cet étudiant ?')) {
+      return;
+    }
+    
+    try {
+      await api.put(`/students/${id}/revoke-badge`);
+      alert('Badge révoqué avec succès');
+      refetch(); // Recharger les données
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Erreur lors de la révocation du badge');
+    }
   };
 
   if (isLoading) return <Typography>Chargement...</Typography>;
@@ -163,6 +196,71 @@ export default function StudentDetail() {
                 Téléphone parent
               </Typography>
               <Typography variant="body1">{student.parentPhone}</Typography>
+            </Box>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Badge QR Code depuis backend */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Badge QR Code
+              </Typography>
+              {student.badgeQrCode ? (
+                <Box sx={{ textAlign: 'center' }}>
+                  <img 
+                    src={student.badgeQrCode} 
+                    alt="Badge QR Code" 
+                    style={{ width: 150, height: 150, border: '1px solid #ddd', borderRadius: 4 }} 
+                  />
+                  {student.badgeExpiry && (
+                    <Typography 
+                      variant="caption" 
+                      display="block" 
+                      sx={{ 
+                        mt: 1,
+                        color: new Date(student.badgeExpiry) < new Date() ? 'error.main' : 'text.secondary'
+                      }}
+                    >
+                      {new Date(student.badgeExpiry) < new Date() ? '❌ Expiré le ' : '✅ Valide jusqu\'au '}
+                      {new Date(student.badgeExpiry).toLocaleDateString('fr-FR')}
+                    </Typography>
+                  )}
+                  <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={handleRenewBadge}
+                      disabled={renewLoading}
+                      fullWidth
+                    >
+                      {renewLoading ? 'Renouvellement...' : 'Renouveler'}
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      onClick={handleRevokeBadge}
+                      fullWidth
+                    >
+                      Révoquer
+                    </Button>
+                  </Box>
+                </Box>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 2 }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Aucun badge généré
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={handleRenewBadge}
+                    disabled={renewLoading}
+                  >
+                    {renewLoading ? 'Génération...' : 'Générer Badge'}
+                  </Button>
+                </Box>
+              )}
             </Box>
           </Paper>
         </Grid>
@@ -259,14 +357,14 @@ export default function StudentDetail() {
           },
         }}
       >
-        <StudentBadge student={student} enrollments={enrollments} schoolYear={schoolYear} />
+        <BadgeCard student={student} enrollments={enrollments} schoolYear={schoolYear} />
       </Dialog>
     </Box>
   );
 }
 
 // Composant Badge à imprimer
-function StudentBadge({
+function BadgeCard({
   student,
   enrollments,
   schoolYear,
@@ -275,15 +373,8 @@ function StudentBadge({
   enrollments: Enrollment[];
   schoolYear: string;
 }) {
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
-
-  // Générer le QR code
-  useEffect(() => {
-    QRCode.toDataURL(student.qrCode || `STUDENT-${student.id}`, {
-      width: 200,
-      margin: 1,
-    }).then(setQrCodeUrl);
-  }, [student.id, student.qrCode]);
+  // Utiliser le badgeQrCode depuis le backend au lieu de le générer
+  const badgeQrCode = student.badgeQrCode;
 
   return (
     <Box
@@ -370,12 +461,31 @@ function StudentBadge({
 
         {/* QR Code */}
         <Box sx={{ textAlign: 'center', borderTop: '1px dashed #ccc', pt: 1 }}>
-          {qrCodeUrl && (
-            <img src={qrCodeUrl} alt="QR Code" style={{ width: 70, height: 70 }} />
+          {badgeQrCode ? (
+            <>
+              <img src={badgeQrCode} alt="Badge QR Code" style={{ width: 70, height: 70 }} />
+              <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.55rem', mt: 0.5 }}>
+                Scanner pour identifier
+              </Typography>
+              {student.badgeExpiry && (
+                <Typography 
+                  variant="caption" 
+                  display="block" 
+                  sx={{ 
+                    fontSize: '0.5rem', 
+                    color: new Date(student.badgeExpiry) < new Date() ? 'red' : 'green',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Valide jusqu'au {new Date(student.badgeExpiry).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                </Typography>
+              )}
+            </>
+          ) : (
+            <Typography variant="caption" color="error" sx={{ fontSize: '0.6rem' }}>
+              ⚠️ Badge non généré
+            </Typography>
           )}
-          <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.55rem', mt: 0.5 }}>
-            Scanner pour identifier
-          </Typography>
         </Box>
       </Box>
 

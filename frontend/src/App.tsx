@@ -14,6 +14,8 @@ import TimeSlots from './pages/TimeSlots'
 import PaymentSchedules from './pages/PaymentSchedules'
 import OverduePayments from './pages/OverduePayments'
 import PrintReceipt from './pages/PrintReceipt'
+import QRScanner from './pages/QRScanner'
+import AttendanceManagement from './pages/AttendanceManagement'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore()
@@ -44,6 +46,8 @@ function App() {
         <Route path="overdue-payments" element={<OverduePayments />} />
         <Route path="rooms" element={<Rooms />} />
         <Route path="timeslots" element={<TimeSlots />} />
+        <Route path="qr-scanner" element={<QRScanner />} />
+        <Route path="attendances" element={<AttendanceManagement />} />
       </Route>
     </Routes>
   )

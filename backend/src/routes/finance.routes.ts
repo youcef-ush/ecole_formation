@@ -117,45 +117,54 @@ router.get('/session-payments', async (req: AuthRequest, res: Response, next) =>
   try {
     const enrollmentRepo = AppDataSource.getRepository(Enrollment);
     const paymentRepo = AppDataSource.getRepository(SessionPayment);
+    const sessionRepo = AppDataSource.getRepository(Session);
 
-    // Récupérer toutes les affectations avec leurs infos
+    // Récupérer toutes les affectations avec leurs infos (Enrollment → Course maintenant)
     const enrollments = await enrollmentRepo.find({
-      relations: ['student', 'student.user', 'session', 'session.course'],
+      relations: ['student', 'student.user', 'course'],
       order: { enrolledAt: 'DESC' },
     });
 
-    // Pour chaque affectation, récupérer les paiements de session
+    // Pour chaque affectation, récupérer les sessions du cours et les paiements
     const enrichedData = await Promise.all(
       enrollments.map(async (enrollment) => {
-        const sessionPayments = await paymentRepo.find({
-          where: {
-            studentId: enrollment.studentId,
-            sessionId: enrollment.sessionId,
-            paymentType: PaymentType.SESSION_FEE,
-          },
-          order: { paymentDate: 'DESC' },
+        // Récupérer toutes les sessions du cours de cet enrollment
+        const sessions = await sessionRepo.find({
+          where: { courseId: enrollment.courseId },
+          order: { startDate: 'ASC' },
         });
+
+        // Récupérer tous les paiements de l'étudiant pour les sessions de ce cours
+        const sessionIds = sessions.map(s => s.id);
+        const sessionPayments = sessionIds.length > 0 
+          ? await paymentRepo
+              .createQueryBuilder('payment')
+              .where('payment.studentId = :studentId', { studentId: enrollment.studentId })
+              .andWhere('payment.sessionId IN (:...sessionIds)', { sessionIds })
+              .andWhere('payment.paymentType = :type', { type: PaymentType.SESSION_FEE })
+              .orderBy('payment.paymentDate', 'DESC')
+              .getMany()
+          : [];
 
         const totalPaid = sessionPayments.reduce(
           (sum, p) => sum + Number(p.amount),
           0
         );
 
-        const sessionPrice = enrollment.session?.price || enrollment.session?.course?.price || 0;
+        const coursePrice = enrollment.course?.price || 0;
 
         return {
           enrollmentId: enrollment.id,
           studentId: enrollment.studentId,
           studentName: `${enrollment.student?.firstName} ${enrollment.student?.lastName}`,
           studentEmail: enrollment.student?.user?.email,
-          courseTitle: enrollment.session?.course?.title,
-          sessionId: enrollment.sessionId,
-          sessionStartDate: enrollment.session?.startDate,
-          sessionEndDate: enrollment.session?.endDate,
-          sessionPrice: sessionPrice,
+          courseTitle: enrollment.course?.title,
+          courseId: enrollment.courseId,
+          sessionsCount: sessions.length,
+          coursePrice: coursePrice,
           totalPaid: totalPaid,
-          isPaid: totalPaid >= sessionPrice,
-          paymentStatus: totalPaid >= sessionPrice ? 'Payé' : 'Impayé',
+          isPaid: totalPaid >= coursePrice,
+          paymentStatus: totalPaid >= coursePrice ? 'Payé' : 'Impayé',
           payments: sessionPayments,
           enrolledAt: enrollment.enrolledAt,
         };
@@ -203,14 +212,25 @@ router.post('/session-payments/pay', async (req: AuthRequest, res: Response, nex
     await paymentRepo.save(payment);
 
     // Mettre à jour le statut de l'enrollment si nécessaire
-    const enrollmentRepo = AppDataSource.getRepository(Enrollment);
-    const enrollment = await enrollmentRepo.findOne({
-      where: { studentId, sessionId },
+    // Note: Enrollment est lié au Course, pas à la Session
+    // On ne peut pas facilement trouver l'enrollment via sessionId
+    // Il faudrait d'abord récupérer la session, puis trouver l'enrollment par courseId
+    const sessionRepo = AppDataSource.getRepository(Session);
+    const session = await sessionRepo.findOne({
+      where: { id: sessionId },
+      relations: ['course'],
     });
 
-    if (enrollment && enrollment.status !== 'Payé') {
-      enrollment.status = 'Payé' as any;
-      await enrollmentRepo.save(enrollment);
+    if (session) {
+      const enrollmentRepo = AppDataSource.getRepository(Enrollment);
+      const enrollment = await enrollmentRepo.findOne({
+        where: { studentId, courseId: session.courseId },
+      });
+
+      if (enrollment && enrollment.status !== 'Payé') {
+        enrollment.status = 'Payé' as any;
+        await enrollmentRepo.save(enrollment);
+      }
     }
 
     res.json({
@@ -240,28 +260,21 @@ router.get('/monthly-tracking', async (req: AuthRequest, res: Response, next) =>
     const paymentRepo = AppDataSource.getRepository(SessionPayment);
     const sessionRepo = AppDataSource.getRepository(Session);
 
-    // Construire la requête
-    let queryBuilder = enrollmentRepo
+    // Construire la requête - Enrollment → Course maintenant
+    let enrollmentQuery = enrollmentRepo
       .createQueryBuilder('enrollment')
       .leftJoinAndSelect('enrollment.student', 'student')
       .leftJoinAndSelect('student.user', 'user')
-      .leftJoinAndSelect('enrollment.session', 'session')
-      .leftJoinAndSelect('session.course', 'course')
-      .orderBy('student.lastName', 'ASC')
-      .addOrderBy('session.year', 'ASC')
-      .addOrderBy('session.month', 'ASC');
-
-    if (year) {
-      queryBuilder = queryBuilder.andWhere('session.year = :year', { year: parseInt(year as string) });
-    }
+      .leftJoinAndSelect('enrollment.course', 'course')
+      .orderBy('student.lastName', 'ASC');
 
     if (courseId) {
-      queryBuilder = queryBuilder.andWhere('course.id = :courseId', { courseId: parseInt(courseId as string) });
+      enrollmentQuery = enrollmentQuery.andWhere('course.id = :courseId', { courseId: parseInt(courseId as string) });
     }
 
-    const enrollments = await queryBuilder.getMany();
+    const enrollments = await enrollmentQuery.getMany();
 
-    // Grouper par étudiant
+    // Pour chaque enrollment, récupérer les sessions du cours
     const studentsMap = new Map();
 
     for (const enrollment of enrollments) {
@@ -272,38 +285,54 @@ router.get('/monthly-tracking', async (req: AuthRequest, res: Response, next) =>
           studentId: studentId,
           studentName: `${enrollment.student?.firstName} ${enrollment.student?.lastName}`,
           studentEmail: enrollment.student?.user?.email,
-          courseTitle: enrollment.session?.course?.title,
-          courseId: enrollment.session?.courseId,
+          courseTitle: enrollment.course?.title,
+          courseId: enrollment.courseId,
           months: [],
         });
       }
 
-      // Vérifier le paiement pour ce mois
-      const payments = await paymentRepo.find({
-        where: {
-          studentId: studentId,
-          sessionId: enrollment.sessionId,
-          paymentType: PaymentType.SESSION_FEE,
-        },
-      });
+      // Récupérer toutes les sessions de ce cours
+      let sessionQuery = sessionRepo
+        .createQueryBuilder('session')
+        .where('session.courseId = :courseId', { courseId: enrollment.courseId })
+        .orderBy('session.year', 'ASC')
+        .addOrderBy('session.month', 'ASC');
 
-      const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-      const sessionPrice = enrollment.session?.price || enrollment.session?.course?.price || 0;
+      if (year) {
+        sessionQuery = sessionQuery.andWhere('session.year = :year', { year: parseInt(year as string) });
+      }
 
-      studentsMap.get(studentId).months.push({
-        sessionId: enrollment.sessionId,
-        month: enrollment.session?.month,
-        year: enrollment.session?.year,
-        monthLabel: enrollment.session?.monthLabel,
-        startDate: enrollment.session?.startDate,
-        endDate: enrollment.session?.endDate,
-        price: sessionPrice,
-        totalPaid: totalPaid,
-        isPaid: totalPaid >= sessionPrice,
-        paymentStatus: totalPaid >= sessionPrice ? 'Payé' : 'Impayé',
-        remainingAmount: Math.max(0, sessionPrice - totalPaid),
-        payments: payments,
-      });
+      const sessions = await sessionQuery.getMany();
+
+      // Pour chaque session, vérifier le paiement
+      for (const session of sessions) {
+        const payments = await paymentRepo.find({
+          where: {
+            studentId: studentId,
+            sessionId: session.id,
+            paymentType: PaymentType.SESSION_FEE,
+          },
+        });
+
+        const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+        const sessionPrice = session.price || enrollment.course?.price || 0;
+
+        studentsMap.get(studentId).months.push({
+          sessionId: session.id,
+          courseId: enrollment.courseId,
+          month: session.month,
+          year: session.year,
+          monthLabel: session.monthLabel,
+          startDate: session.startDate,
+          endDate: session.endDate,
+          price: sessionPrice,
+          totalPaid: totalPaid,
+          isPaid: totalPaid >= sessionPrice,
+          paymentStatus: totalPaid >= sessionPrice ? 'Payé' : 'Impayé',
+          remainingAmount: Math.max(0, sessionPrice - totalPaid),
+          payments: payments,
+        });
+      }
     }
 
     const result = Array.from(studentsMap.values());

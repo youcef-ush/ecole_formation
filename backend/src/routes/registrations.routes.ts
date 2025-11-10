@@ -8,6 +8,7 @@ import { Session } from '../entities/Session.entity';
 import { Enrollment, EnrollmentStatus } from '../entities/Enrollment.entity';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/auth.middleware';
+import { QrCodeService } from '../services/qrcode.service';
 import bcrypt from 'bcrypt';
 
 const router = Router();
@@ -17,6 +18,7 @@ const userRepository = AppDataSource.getRepository(User);
 const courseRepository = AppDataSource.getRepository(Course);
 const sessionRepository = AppDataSource.getRepository(Session);
 const enrollmentRepository = AppDataSource.getRepository(Enrollment);
+const qrCodeService = new QrCodeService();
 
 /**
  * @swagger
@@ -489,48 +491,32 @@ router.post('/:id/validate', authenticate, authorize(UserRole.ADMIN), async (req
 
     await studentRepository.save(student);
 
-    // NOUVEAU : Générer le QR Code unique pour l'étudiant
+    // AUTO-GÉNÉRATION DU BADGE QR CODE (Tâche 17)
+    // Générer le badge QR code avec le service (valide 12 mois par défaut)
+    const badgeQrCodeDataUrl = await qrCodeService.generateStudentBadge(student.id, 12);
+    const badgeExpiry = new Date();
+    badgeExpiry.setMonth(badgeExpiry.getMonth() + 12);
+
+    student.badgeQrCode = badgeQrCodeDataUrl;
+    student.badgeExpiry = badgeExpiry;
+    
+    // Aussi garder l'ancien format pour compatibilité
     const timestamp = Date.now();
-    const qrCode = `STU-${student.id}-${timestamp}`;
-    student.qrCode = qrCode;
+    student.qrCode = `STU-${student.id}-${timestamp}`;
+    
     await studentRepository.save(student);
 
-    // Créer automatiquement l'affectation (enrollment) à la session SI une session existe
+    // Créer automatiquement l'affectation (enrollment) à la FORMATION
     let enrollment = null;
-    if (refreshedRegistration.sessionId) {
-      // Vérifier d'abord la capacité de la session
-      const Session = (await import('../entities/Session.entity')).Session;
-      const sessionRepo = AppDataSource.getRepository(Session);
-      const session = await sessionRepo.findOne({
-        where: { id: refreshedRegistration.sessionId }
-      });
-
-      if (!session) {
-        throw new Error('Session non trouvée');
-      }
-
-      // Vérifier si la session est pleine
-      const enrolledCount = session.enrolledCount || 0;
-      if (enrolledCount >= session.capacity) {
-        return res.status(400).json({
-          success: false,
-          message: `La session est complète (${session.capacity}/${session.capacity} places)`,
-        });
-      }
-
+    if (refreshedRegistration.courseId) {
       enrollment = enrollmentRepository.create({
         studentId: student.id,
-        sessionId: refreshedRegistration.sessionId,
+        courseId: refreshedRegistration.courseId,
         status: EnrollmentStatus.PENDING,
         notes: `Affectation automatique depuis l'inscription #${refreshedRegistration.id}`,
       });
 
       await enrollmentRepository.save(enrollment);
-
-      // NOUVEAU : Incrémenter le compteur enrolledCount de la session
-      session.enrolledCount = enrolledCount + 1;
-      await sessionRepo.save(session);
-      console.log(`✅ Session #${session.id} : ${session.enrolledCount}/${session.capacity} places occupées`);
 
       // NOUVEAU : Générer automatiquement les échéanciers de paiement
       const course = refreshedRegistration.course;
@@ -583,13 +569,18 @@ router.post('/:id/validate', authenticate, authorize(UserRole.ADMIN), async (req
     res.json({
       success: true,
       message: enrollment 
-        ? 'Inscription validée avec succès - Étudiant créé avec QR Code et affecté à la session'
-        : 'Inscription validée avec succès - Étudiant créé avec QR Code (pas de session assignée)',
+        ? 'Inscription validée avec succès - Étudiant créé avec badge QR Code et affecté à la formation'
+        : 'Inscription validée avec succès - Étudiant créé avec badge QR Code (pas de formation assignée)',
       data: {
         registration: refreshedRegistration,
         student: {
-          ...student,
-          qrCode: qrCode, // QR Code inclus dans la réponse
+          id: student.id,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          phone: student.phone,
+          badgeQrCode: student.badgeQrCode, // Badge QR Code (Data URL)
+          badgeExpiry: student.badgeExpiry,
+          qrCode: student.qrCode, // Ancien format pour compatibilité
         },
         enrollment,
       },

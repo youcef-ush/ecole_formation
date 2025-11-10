@@ -19,6 +19,8 @@ import MeetingRoomIcon from '@mui/icons-material/MeetingRoom'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import ScheduleIcon from '@mui/icons-material/Schedule'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 interface SidebarProps {
@@ -29,6 +31,8 @@ interface SidebarProps {
 
 const menuItems = [
   { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/' },
+  { text: 'Scanner Présences', icon: <QrCodeScannerIcon />, path: '/qr-scanner' },
+  { text: 'Gestion Présences', icon: <CheckCircleIcon />, path: '/attendances' },
   { text: 'Inscriptions', icon: <AppRegistrationIcon />, path: '/registrations' },
   { text: 'Étudiants', icon: <SchoolIcon />, path: '/students' },
   { text: 'Formateurs', icon: <PersonIcon />, path: '/trainers' },

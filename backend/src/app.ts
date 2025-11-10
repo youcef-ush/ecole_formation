@@ -21,6 +21,7 @@ import paymentsRoutes from './routes/payments.routes';
 import financeRoutes from './routes/finance.routes';
 import installmentsRoutes from './routes/installments.routes';
 import paymentSchedulesRoutes from './routes/payment-schedules.routes';
+import attendanceRoutes from './routes/attendance.routes';
 import { errorHandler } from './middleware/error.middleware';
 
 // Load environment variables
@@ -80,6 +81,7 @@ app.use('/api/registrations', registrationsRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/payment-schedules', paymentSchedulesRoutes);
+app.use('/api/attendance', attendanceRoutes);
 app.use('/api', installmentsRoutes);
 
 // 404 handler
