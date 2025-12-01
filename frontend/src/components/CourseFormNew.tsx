@@ -132,6 +132,7 @@ export default function CourseFormNew({ open, onClose }: CourseFormProps) {
     trainerId: '',
     groupNumber: 1,
     pricePerMonth: 3000,
+    durationHours: 2, // Heures par séance
     // Cours Individuel
     studentId: '',
     timeSlotId: '',
@@ -246,6 +247,8 @@ export default function CourseFormNew({ open, onClose }: CourseFormProps) {
           ? [formData.lyceeBranch] 
           : formData.lyceeBranches,
         subjectModule: formData.subjectModule,
+        durationHours: formData.durationHours,
+        price: 0,
         pricePerMonth: formData.pricePerMonth,
         durationMonths: 12, // Année scolaire complète
         description: `Cours de soutien en ${formData.subjectModule} pour ${schoolLevels.find(l => l.value === formData.schoolLevel)?.label}`,
@@ -258,6 +261,8 @@ export default function CourseFormNew({ open, onClose }: CourseFormProps) {
         category: 'Soutien scolaire',
         subjectModule: formData.subjectModule,
         timeSlotId: formData.timeSlotId,
+        durationHours: formData.durationHours,
+        price: 0,
         pricePerSession: formData.pricePerHour,
         description: `Cours individuel de ${formData.subjectModule}`,
       };
@@ -268,6 +273,7 @@ export default function CourseFormNew({ open, onClose }: CourseFormProps) {
         category: 'Formation professionnelle',
         durationMonths: formData.durationMonths,
         maxStudents: formData.maxStudents,
+        durationHours: formData.durationHours,
         price: formData.price,
         description: formData.description,
         certificate: 'Certificat école',
@@ -455,6 +461,20 @@ export default function CourseFormNew({ open, onClose }: CourseFormProps) {
                   />
                 </Grid>
 
+                {/* Durée par séance */}
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    type="number"
+                    label="Durée par Séance (heures)"
+                    value={formData.durationHours}
+                    onChange={(e) => setFormData({ ...formData, durationHours: parseFloat(e.target.value) })}
+                    inputProps={{ min: 0.5, max: 8, step: 0.5 }}
+                    helperText="Ex: 1.5h, 2h, 3h"
+                  />
+                </Grid>
+
                 {/* Aperçu du nom généré */}
                 {generatedTitle && (
                   <Grid item xs={12}>
@@ -630,6 +650,20 @@ export default function CourseFormNew({ open, onClose }: CourseFormProps) {
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
                     inputProps={{ min: 0, step: 1000 }}
+                  />
+                </Grid>
+
+                {/* Durée totale en heures */}
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    type="number"
+                    label="Durée Totale (heures)"
+                    value={formData.durationHours}
+                    onChange={(e) => setFormData({ ...formData, durationHours: parseFloat(e.target.value) })}
+                    inputProps={{ min: 1, step: 1 }}
+                    helperText="Ex: 120h, 200h, 300h"
                   />
                 </Grid>
 

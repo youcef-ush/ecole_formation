@@ -40,6 +40,7 @@ export default function Trainers() {
   const [searchQuery, setSearchQuery] = useState('')
   const [openDetails, setOpenDetails] = useState(false)
   const [openEdit, setOpenEdit] = useState(false)
+  const [openCreate, setOpenCreate] = useState(false)
   const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null)
 
   const { data: trainers, isLoading } = useQuery<Trainer[]>({
@@ -83,6 +84,17 @@ export default function Trainers() {
     },
   })
 
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await api.post('/trainers', data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trainers'] })
+      setOpenCreate(false)
+    },
+  })
+
   const handleUpdateTrainer = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
@@ -90,6 +102,20 @@ export default function Trainers() {
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName'),
       phone: formData.get('phone'),
+      bio: formData.get('bio'),
+    })
+  }
+
+  const handleCreateTrainer = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    createMutation.mutate({
+      firstName: formData.get('firstName'),
+      lastName: formData.get('lastName'),
+      phone: formData.get('phone'),
+      specialties: formData.get('specialties') 
+        ? (formData.get('specialties') as string).split(',').map(s => s.trim())
+        : [],
       bio: formData.get('bio'),
     })
   }
@@ -113,7 +139,7 @@ export default function Trainers() {
             Gérez la liste de vos formateurs
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenCreate(true)}>
           Ajouter un formateur
         </Button>
       </Box>
@@ -316,6 +342,72 @@ export default function Trainers() {
             </Button>
             <Button type="submit" variant="contained" color="primary" disabled={updateMutation.isPending}>
               {updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Dialog de création formateur */}
+      <Dialog open={openCreate} onClose={() => setOpenCreate(false)} maxWidth="md" fullWidth>
+        <form onSubmit={handleCreateTrainer}>
+          <DialogTitle>
+            <Typography variant="h6">Ajouter un Formateur</Typography>
+          </DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="Prénom"
+                  name="firstName"
+                  required
+                />
+              </Grid>
+
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="Nom"
+                  name="lastName"
+                  required
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Téléphone"
+                  name="phone"
+                  required
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Spécialités"
+                  name="specialties"
+                  helperText="Séparez par des virgules (ex: Mathématiques, Physique)"
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={4}
+                  label="Biographie"
+                  name="bio"
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenCreate(false)} disabled={createMutation.isPending}>
+              Annuler
+            </Button>
+            <Button type="submit" variant="contained" color="primary" disabled={createMutation.isPending}>
+              {createMutation.isPending ? 'Création...' : 'Créer le formateur'}
             </Button>
           </DialogActions>
         </form>

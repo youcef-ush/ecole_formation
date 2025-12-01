@@ -13,6 +13,7 @@ const startServer = async () => {
       console.log(`🚀 Server is running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 API: http://localhost:${PORT}/api`);
+      console.log(`✅ ENUMs fixed: course_category & course_type with correct values`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

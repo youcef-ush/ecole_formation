@@ -45,13 +45,28 @@ END $$;
 
 -- Types pour Courses
 DO $$ BEGIN
-    CREATE TYPE course_type AS ENUM ('tutoring', 'qualifying_long', 'qualifying_short');
+    CREATE TYPE course_type AS ENUM ('QUALIFYING', 'TUTORING_GROUP', 'TUTORING_INDIVIDUAL', 'TUTORING_ONLINE');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
 DO $$ BEGIN
-    CREATE TYPE course_category AS ENUM ('academics', 'languages', 'professional', 'arts');
+    CREATE TYPE course_category AS ENUM (
+        'Soutien scolaire',
+        'Formation professionnelle',
+        'Développement personnel',
+        'Langues',
+        'Cuisine',
+        'Couture',
+        'Informatique',
+        'Autre'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE course_certificate AS ENUM ('Certificat école', 'CQP', 'Diplôme État', 'Aucun');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -90,6 +105,13 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
+-- Types pour Rooms
+DO $$ BEGIN
+    CREATE TYPE room_type AS ENUM ('Théorique', 'Pratique', 'Informatique', 'Atelier');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 -- ============================================
 -- 3. RECRÉATION DES TABLES
 -- ============================================
@@ -110,11 +132,9 @@ CREATE TABLE trainers (
     id SERIAL PRIMARY KEY,
     "firstName" VARCHAR(100) NOT NULL,
     "lastName" VARCHAR(100) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
     phone VARCHAR(20),
-    specialty VARCHAR(255),
+    specialties JSONB,
     bio TEXT,
-    "isActive" BOOLEAN DEFAULT true,
     "userId" INTEGER REFERENCES users(id) ON DELETE SET NULL,
     "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -127,11 +147,26 @@ CREATE TABLE courses (
     description TEXT,
     type course_type NOT NULL,
     category course_category NOT NULL,
+    certificate course_certificate DEFAULT 'Certificat école',
+    "durationHours" INTEGER DEFAULT 0,
+    "durationDescription" VARCHAR(255),
+    price DECIMAL(10, 2) DEFAULT 0,
+    "pricePerSession" DECIMAL(10, 2) DEFAULT 0,
     "pricePerMonth" DECIMAL(10, 2) NOT NULL,
     "durationMonths" INTEGER NOT NULL,
     "schoolLevels" VARCHAR(255),
     "lyceeBranches" VARCHAR(255),
     "subjectModule" VARCHAR(255),
+    prerequisites TEXT,
+    "minAge" INTEGER,
+    "maxStudents" INTEGER,
+    "practicalContent" TEXT,
+    "teacherName" VARCHAR(255),
+    room VARCHAR(255),
+    schedule TEXT,
+    "trainerId" INTEGER REFERENCES trainers(id) ON DELETE SET NULL,
+    "roomId" INTEGER REFERENCES rooms(id) ON DELETE SET NULL,
+    "timeSlotId" INTEGER REFERENCES time_slots(id) ON DELETE SET NULL,
     "startDate" DATE,
     "endDate" DATE,
     "isActive" BOOLEAN DEFAULT true,
@@ -145,9 +180,10 @@ CREATE TABLE courses (
 -- Table Rooms
 CREATE TABLE rooms (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
+    name VARCHAR(100) UNIQUE NOT NULL,
+    type room_type DEFAULT 'Théorique',
     capacity INTEGER NOT NULL,
-    equipment TEXT,
+    description TEXT,
     "isActive" BOOLEAN DEFAULT true,
     "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -159,6 +195,7 @@ CREATE TABLE time_slots (
     "dayOfWeek" VARCHAR(20) NOT NULL,
     "startTime" TIME NOT NULL,
     "endTime" TIME NOT NULL,
+    label VARCHAR(100),
     "isActive" BOOLEAN DEFAULT true,
     "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP

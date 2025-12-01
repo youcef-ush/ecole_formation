@@ -30,6 +30,7 @@ export class Room {
   @Column({
     type: 'enum',
     enum: RoomType,
+    enumName: 'room_type', // Nom du type PostgreSQL
     default: RoomType.THEORETICAL,
   })
   type: RoomType;
