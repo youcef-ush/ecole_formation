@@ -37,7 +37,7 @@ import {
   Info,
 } from '@mui/icons-material';
 import { Html5Qrcode } from 'html5-qrcode';
-import axios from 'axios';
+import api from '../services/api';
 
 interface Session {
   id: number;
@@ -94,7 +94,7 @@ const QRScanner: React.FC = () => {
   const [currentScan, setCurrentScan] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string>('');
   const [showInfo, setShowInfo] = useState(false);
-  
+
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerElementId = 'qr-reader';
 
@@ -116,9 +116,7 @@ const QRScanner: React.FC = () => {
 
   const loadSessions = async () => {
     try {
-      const response = await axios.get('/api/sessions', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
+      const response = await api.get('/sessions');
       setSessions(response.data.data || []);
     } catch (err) {
       console.error('Erreur chargement sessions:', err);
@@ -134,9 +132,7 @@ const QRScanner: React.FC = () => {
     }
 
     try {
-      const response = await axios.get(`/api/sessions/${selectedSessionId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
+      const response = await api.get(`/sessions/${selectedSessionId}`);
 
       const sessionData = response.data.data;
       setSession(sessionData);
@@ -225,23 +221,20 @@ const QRScanner: React.FC = () => {
       const sessionQrCode = `SESSION-${session.id}-${dateStr}-${timestamp}`;
 
       // Appeler l'API de validation scan
-      const response = await axios.post<{ success: boolean; data: ScanResult }>(
-        '/api/attendance/validate-scan',
+      const response = await api.post<{ success: boolean; data: ScanResult }>(
+        '/attendance/validate-scan',
         {
           sessionQrCode,
           studentQrCode,
-        },
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         }
       );
 
       const result = response.data.data;
-      
+
       if (result.success) {
         // Succès ou warning
         const status = result.accessStatus?.status || 'granted';
-        
+
         if (status === 'granted') {
           playSound('success');
         } else if (status === 'warning') {
@@ -256,7 +249,7 @@ const QRScanner: React.FC = () => {
         }
 
         setCurrentScan(result);
-        
+
         // Effacer le message après 3 secondes
         setTimeout(() => setCurrentScan(null), 3000);
       }
@@ -264,7 +257,7 @@ const QRScanner: React.FC = () => {
       const errorMessage = err.response?.data?.message || err.message || 'Erreur lors de l\'enregistrement';
       setError(errorMessage);
       playSound('error');
-      
+
       // Effacer l'erreur après 3 secondes
       setTimeout(() => setError(''), 3000);
     }
@@ -398,8 +391,8 @@ const QRScanner: React.FC = () => {
               {session.monthLabel && `${session.monthLabel} ${session.year}`}
             </Typography>
             <Typography variant="body2">
-              Du {new Date(session.startDate).toLocaleDateString('fr-FR')} 
-              {' au '} 
+              Du {new Date(session.startDate).toLocaleDateString('fr-FR')}
+              {' au '}
               {new Date(session.endDate).toLocaleDateString('fr-FR')}
             </Typography>
           </CardContent>
@@ -408,15 +401,15 @@ const QRScanner: React.FC = () => {
 
       {/* Feedback actuel */}
       {currentScan && currentScan.success && (
-        <Alert 
-          severity={getStatusColor(currentScan.accessStatus!.status)} 
+        <Alert
+          severity={getStatusColor(currentScan.accessStatus!.status)}
           sx={{ mb: 3 }}
           icon={getStatusIcon(currentScan.accessStatus!.status)}
         >
           <AlertTitle>
-            {currentScan.accessStatus!.status === 'granted' ? 'Présence Enregistrée ✓' : 
-             currentScan.accessStatus!.status === 'warning' ? 'Avertissement Paiement ⚠' : 
-             'Accès Refusé ✗'}
+            {currentScan.accessStatus!.status === 'granted' ? 'Présence Enregistrée ✓' :
+              currentScan.accessStatus!.status === 'warning' ? 'Avertissement Paiement ⚠' :
+                'Accès Refusé ✗'}
           </AlertTitle>
           {currentScan.attendance && (
             <Typography variant="body2">
@@ -443,7 +436,7 @@ const QRScanner: React.FC = () => {
           <CardContent>
             <Box sx={{ textAlign: 'center' }}>
               <div id={scannerElementId} style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }} />
-              
+
               {isScanning && <LinearProgress sx={{ mt: 2 }} />}
 
               <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -518,8 +511,8 @@ const QRScanner: React.FC = () => {
                             size="small"
                             color={
                               attendance.status === 'present' ? 'success' :
-                              attendance.status === 'late' ? 'warning' :
-                              'default'
+                                attendance.status === 'late' ? 'warning' :
+                                  'default'
                             }
                           />
                         </Box>
@@ -542,7 +535,7 @@ const QRScanner: React.FC = () => {
             <strong>Étape 1 : Sélectionner la session</strong>
           </Typography>
           <Typography variant="body2" paragraph>
-            Sélectionnez la session dans la liste déroulante puis cliquez sur "Confirmer Session". 
+            Sélectionnez la session dans la liste déroulante puis cliquez sur "Confirmer Session".
             Le scanner se lancera automatiquement pour scanner les badges étudiants.
           </Typography>
 

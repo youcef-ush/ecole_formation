@@ -20,32 +20,32 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const sessionRepo = AppDataSource.getRepository(Session);
     const sessionPaymentRepo = AppDataSource.getRepository(SessionPayment);
-    
+
     // Récupérer le mois et l'année depuis les paramètres de requête
     const { month, year } = req.query;
-    
+
     // Si aucun filtre n'est fourni, utiliser le mois courant
     const currentDate = new Date();
     const filterMonth = month ? parseInt(month as string) : currentDate.getMonth() + 1; // JS months are 0-indexed
     const filterYear = year ? parseInt(year as string) : currentDate.getFullYear();
-    
+
     const sessions = await sessionRepo.find({
       where: {
         month: filterMonth,
         year: filterYear,
       },
       relations: [
-        'course', 
+        'course',
         'trainer',
-        'roomEntity',
-        'timeSlotEntity',
+        'room',
+        'timeSlot',
       ],
       order: { startDate: 'ASC' },
     });
 
     // Charger les enrollments et sessionPayments pour chaque session
     const enrollmentRepo = AppDataSource.getRepository(Enrollment);
-    
+
     for (const session of sessions) {
       if (session.course) {
         // Récupérer les enrollments pour cette formation
@@ -69,15 +69,15 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
               p => p.studentId === enrollment.studentId
             );
           }
-          
+
           // Ajouter les enrollments à la session pour le retour
           (session as any).enrollments = enrollments;
         }
       }
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: sessions,
       filter: {
         month: filterMonth,
@@ -188,18 +188,18 @@ router.post('/generate-monthly', async (req: AuthRequest, res: Response, next) =
 
     // Vérifier que la formation existe
     const courseRepo = AppDataSource.getRepository(Course);
-    const course = await courseRepo.findOne({ 
+    const course = await courseRepo.findOne({
       where: { id: courseId },
       relations: ['trainer'] // Récupérer le formateur de la formation
     });
-    
+
     if (!course) {
       throw new AppError('Formation non trouvée', 404);
     }
 
     // Utiliser le formateur de la formation si non spécifié
     const finalTrainerId = trainerId || course.trainer?.id;
-    
+
     if (!finalTrainerId) {
       throw new AppError('Aucun formateur trouvé pour cette formation', 400);
     }
@@ -207,13 +207,13 @@ router.post('/generate-monthly', async (req: AuthRequest, res: Response, next) =
     // Récupérer une salle disponible si roomId n'est pas fourni
     const roomRepo = AppDataSource.getRepository(Room);
     let finalRoomId = roomId;
-    
+
     if (!finalRoomId) {
-      const availableRoom = await roomRepo.findOne({ 
+      const availableRoom = await roomRepo.findOne({
         where: { isActive: true },
         order: { capacity: 'DESC' }
       });
-      
+
       if (availableRoom) {
         finalRoomId = availableRoom.id;
       }
@@ -281,7 +281,7 @@ router.put('/:id', async (req: AuthRequest, res: Response, next) => {
   try {
     const sessionRepo = AppDataSource.getRepository(Session);
     const session = await sessionRepo.findOne({ where: { id: parseInt(req.params.id) } });
-    
+
     if (!session) {
       throw new AppError('Session non trouvée', 404);
     }

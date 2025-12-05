@@ -103,20 +103,20 @@ async function seedDatabase() {
       { dayOfWeek: DayOfWeek.MONDAY, startTime: '10:15', endTime: '12:15', label: 'Matin', isActive: true },
       { dayOfWeek: DayOfWeek.MONDAY, startTime: '14:00', endTime: '16:00', label: 'Après-midi', isActive: true },
       { dayOfWeek: DayOfWeek.MONDAY, startTime: '16:15', endTime: '18:15', label: 'Après-midi', isActive: true },
-      
+
       // Mardi
       { dayOfWeek: DayOfWeek.TUESDAY, startTime: '08:00', endTime: '10:00', label: 'Matin', isActive: true },
       { dayOfWeek: DayOfWeek.TUESDAY, startTime: '10:15', endTime: '12:15', label: 'Matin', isActive: true },
       { dayOfWeek: DayOfWeek.TUESDAY, startTime: '14:00', endTime: '16:00', label: 'Après-midi', isActive: true },
-      
+
       // Mercredi
       { dayOfWeek: DayOfWeek.WEDNESDAY, startTime: '08:00', endTime: '10:00', label: 'Matin', isActive: true },
       { dayOfWeek: DayOfWeek.WEDNESDAY, startTime: '10:15', endTime: '12:15', label: 'Matin', isActive: true },
-      
+
       // Jeudi
       { dayOfWeek: DayOfWeek.THURSDAY, startTime: '08:00', endTime: '10:00', label: 'Matin', isActive: true },
       { dayOfWeek: DayOfWeek.THURSDAY, startTime: '14:00', endTime: '16:00', label: 'Après-midi', isActive: true },
-      
+
       // Samedi
       { dayOfWeek: DayOfWeek.SATURDAY, startTime: '09:00', endTime: '12:00', label: 'Matin', isActive: true },
       { dayOfWeek: DayOfWeek.SATURDAY, startTime: '14:00', endTime: '17:00', label: 'Après-midi', isActive: true },
@@ -125,7 +125,7 @@ async function seedDatabase() {
 
     // ==================== FORMATEURS ====================
     console.log('👨‍🏫 Création des formateurs...');
-    
+
     // Créer d'abord les utilisateurs pour les formateurs
     const trainerUsersData = [
       { email: 'ahmed.benali@ecole.dz', firstName: 'Ahmed', lastName: 'Benali', phone: '0550123456', specialties: ['Développement Web', 'JavaScript', 'React'] },
@@ -399,7 +399,7 @@ async function seedDatabase() {
     for (let i = 0; i < studentNames.length; i++) {
       const { firstName, lastName } = studentNames[i];
       const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@student.dz`;
-      
+
       // Créer l'utilisateur
       const user = await userRepo.save({
         email: email,
@@ -424,7 +424,7 @@ async function seedDatabase() {
     // ==================== AFFECTATIONS (ENROLLMENTS) ====================
     console.log('🎓 Création des affectations...');
     const enrollments = [];
-    
+
     // Session 1 (Dev Web) - 8 étudiants
     for (let i = 0; i < 8; i++) {
       const enrollment = await enrollmentRepo.save({
@@ -470,7 +470,7 @@ async function seedDatabase() {
     // ==================== PAIEMENTS ====================
     console.log('💰 Création des paiements...');
     const payments = [];
-    
+
     for (const enrollment of enrollments) {
       if (enrollment.status === EnrollmentStatus.PAID) {
         const payment = await paymentRepo.save({
@@ -504,7 +504,7 @@ async function seedDatabase() {
         phone: `077${Math.floor(1000000 + Math.random() * 9000000)}`,
         courseId: courses[i % courses.length].id,
         sessionId: sessions[i % sessions.length].id,
-        status: i < 2 ? RegistrationStatus.PENDING_PAYMENT : RegistrationStatus.VALIDATED,
+        status: i < 2 ? RegistrationStatus.PENDING : RegistrationStatus.VALIDATED,
         notes: i === 0 ? 'Candidat très motivé' : undefined,
       });
       registrations.push(registration);

@@ -45,7 +45,7 @@ import { DatePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { fr } from 'date-fns/locale';
-import axios from 'axios';
+import api from '../services/api';
 
 interface Session {
   id: number;
@@ -125,9 +125,7 @@ const AttendanceManagement: React.FC = () => {
 
   const loadSessions = async () => {
     try {
-      const response = await axios.get('/api/sessions', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
+      const response = await api.get('/sessions');
       setSessions(response.data.data || []);
     } catch (err) {
       console.error('Erreur chargement sessions:', err);
@@ -143,11 +141,8 @@ const AttendanceManagement: React.FC = () => {
 
     try {
       const dateStr = selectedDate.toISOString().split('T')[0];
-      const response = await axios.get(
-        `/api/attendance/sessions/${selectedSession}/attendance?date=${dateStr}`,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        }
+      const response = await api.get(
+        `/attendance/sessions/${selectedSession}/attendance?date=${dateStr}`
       );
 
       setReport(response.data.data);
@@ -169,8 +164,7 @@ const AttendanceManagement: React.FC = () => {
       if (!sessionData) return;
 
       // Récupérer les enrollments du cours
-      const response = await axios.get('/api/enrollments', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      const response = await api.get('/enrollments', {
         params: { courseId: sessionData.courseId },
       });
 
@@ -194,23 +188,20 @@ const AttendanceManagement: React.FC = () => {
     }
 
     try {
-      await axios.post(
-        '/api/attendance/manual',
+      await api.post(
+        '/attendance/manual',
         {
           sessionId: selectedSession,
           studentId: parseInt(manualForm.studentId),
           status: manualForm.status,
           note: manualForm.note,
-        },
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         }
       );
 
       setSuccess('Présence enregistrée avec succès');
       setManualDialog(false);
       setManualForm({ studentId: '', status: 'present', note: '' });
-      
+
       // Recharger le rapport
       await loadAttendanceReport();
 

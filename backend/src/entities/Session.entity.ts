@@ -15,10 +15,10 @@ import { Room } from './Room.entity';
 import { TimeSlot } from './TimeSlot.entity';
 
 export enum SessionStatus {
-  UPCOMING = 'À venir',
-  IN_PROGRESS = 'En cours',
-  COMPLETED = 'Terminée',
-  CANCELLED = 'Annulée',
+  UPCOMING = 'UPCOMING',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
 }
 
 @Entity('sessions')

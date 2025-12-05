@@ -23,6 +23,7 @@ import installmentsRoutes from './routes/installments.routes';
 import paymentSchedulesRoutes from './routes/payment-schedules.routes';
 import attendanceRoutes from './routes/attendance.routes';
 import { errorHandler } from './middleware/error.middleware';
+import { translateQueryParams, translateRequestBody } from './middleware/translation.middleware';
 
 // Load environment variables
 dotenv.config();
@@ -55,6 +56,10 @@ if (process.env.NODE_ENV === 'development') {
 // Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Translation middleware (French <-> English enum conversion)
+app.use('/api', translateQueryParams);
+app.use('/api', translateRequestBody);
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {

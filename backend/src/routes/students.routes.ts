@@ -42,7 +42,7 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const studentRepo = AppDataSource.getRepository(Student);
     const students = await studentRepo.find({
-      relations: ['user', 'enrollments', 'enrollments.course', 'enrollments.session'],
+      relations: ['user', 'enrollments', 'enrollments.course'],
       order: { createdAt: 'DESC' },
     });
 

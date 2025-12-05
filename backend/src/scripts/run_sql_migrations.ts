@@ -1,4 +1,3 @@
-
 import { AppDataSource } from '../config/database.config';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -16,7 +15,18 @@ async function runSqlMigrations() {
             'create_attendances_table.sql',
             'create_attendance_reports_table.sql',
             'fix_missing_student_columns.sql',
-            'fix_missing_session_columns.sql'
+            'fix_missing_session_columns.sql',
+            'fix_enrollments_columns.sql',
+            'fix_registrations_columns.sql',
+            'fix_installment_payments_columns.sql',
+            'fix_registrations_notes.sql',
+            'fix_registrations_all_columns.sql',
+            'fix_sessions_all_columns.sql',
+            'fix_installment_payments_all_columns.sql',
+            'fix_registration_enums.sql',
+            'fix_session_enums.sql',
+            'fix_sessions_missing_columns_2.sql',
+            'create_session_payments_table_v2.sql'
         ];
 
         const migrationsDir = path.join(__dirname, '../../migrations');

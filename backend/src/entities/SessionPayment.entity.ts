@@ -10,16 +10,16 @@ import { Student } from './Student.entity';
 import { Session } from './Session.entity';
 
 export enum PaymentMethod {
-  CASH = 'Espèces',
-  CHECK = 'Chèque',
-  BANK_TRANSFER = 'Virement bancaire',
-  CARD = 'Carte bancaire',
-  ONLINE = 'Paiement en ligne',
+  CASH = 'CASH',
+  CHECK = 'CHECK',
+  BANK_TRANSFER = 'BANK_TRANSFER',
+  CARD = 'CARD',
+  ONLINE = 'ONLINE',
 }
 
 export enum PaymentType {
-  REGISTRATION_FEE = 'Frais d\'inscription',
-  SESSION_FEE = 'Frais de session',
+  REGISTRATION_FEE = 'REGISTRATION_FEE',
+  SESSION_FEE = 'SESSION_FEE',
 }
 
 @Entity('session_payments')

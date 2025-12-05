@@ -14,17 +14,17 @@ import { InstallmentPayment } from './InstallmentPayment.entity';
 import { Student } from './Student.entity';
 
 export enum RegistrationStatus {
-  PENDING = 'En attente',
-  PAID = 'Frais payés',
-  VALIDATED = 'Validée',
-  REJECTED = 'Refusée',
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  VALIDATED = 'VALIDATED',
+  REJECTED = 'REJECTED',
 }
 
 export enum PaymentMethod {
-  CASH = 'Espèces',
-  CARD = 'Carte bancaire',
-  BANK_TRANSFER = 'Virement bancaire',
-  CHECK = 'Chèque',
+  CASH = 'CASH',
+  CARD = 'CARD',
+  BANK_TRANSFER = 'BANK_TRANSFER',
+  CHECK = 'CHECK',
 }
 
 @Entity('registrations')

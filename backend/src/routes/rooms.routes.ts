@@ -244,7 +244,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
 
     // Vérifier qu'aucune session active n'utilise cette salle
     const activeSessions = room.sessions?.filter(
-      (s) => s.status === 'À venir' || s.status === 'En cours'
+      (s) => s.status === 'UPCOMING' || s.status === 'IN_PROGRESS'
     );
 
     if (activeSessions && activeSessions.length > 0) {
@@ -286,7 +286,7 @@ router.get('/:id/availability', async (req: AuthRequest, res: Response, next) =>
       (s) =>
         s.startDate.toString() === date &&
         s.timeSlotId === parseInt(timeSlotId as string) &&
-        s.status !== 'Annulée'
+        s.status !== 'CANCELLED'
     );
 
     res.json({
