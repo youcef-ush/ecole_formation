@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Card,
@@ -7,570 +7,253 @@ import {
   Button,
   Alert,
   AlertTitle,
-  Stepper,
-  Step,
-  StepLabel,
-  LinearProgress,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Divider,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
-  TextField,
+  FormControl,
+  InputLabel,
+  Select,
   MenuItem,
+  CircularProgress,
+  Chip,
+  Stack,
 } from '@mui/material';
 import {
   QrCodeScanner,
   CheckCircle,
   Cancel,
-  Warning,
-  Refresh,
-  Stop,
   PlayArrow,
-  Info,
+  Stop,
 } from '@mui/icons-material';
 import { Html5Qrcode } from 'html5-qrcode';
 import api from '../services/api';
 
-interface Session {
+interface Course {
   id: number;
-  courseId: number;
-  courseTitle?: string;
-  startDate: string;
-  endDate: string;
-  month?: number;
-  year?: number;
-  monthLabel?: string;
-}
-
-interface Student {
-  id: number;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  isActive: boolean;
-  badgeExpiry?: string;
-}
-
-interface AccessStatus {
-  allowed: boolean;
-  status: 'granted' | 'warning' | 'denied';
-  message: string;
-}
-
-interface Attendance {
-  id: number;
-  studentId: number;
-  sessionId: number;
-  status: 'present' | 'absent' | 'late' | 'excused';
-  scanMethod: 'qr_scan' | 'manual';
-  scanTimestamp: string;
-  accessStatus?: string;
-  student?: Student;
+  title: string;
+  type: string;
+  totalPrice: number;
 }
 
 interface ScanResult {
-  success: boolean;
-  attendance?: Attendance;
-  accessStatus?: AccessStatus;
-  student?: Student;
-  message?: string;
+  allowed: boolean;
+  status: 'GRANTED' | 'DENIED';
+  reason: string;
+  student?: {
+    firstName: string;
+    lastName: string;
+  };
 }
 
-const QRScanner: React.FC = () => {
-  const [activeStep, setActiveStep] = useState(0);
+export default function QRScanner() {
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
-  const [attendances, setAttendances] = useState<Attendance[]>([]);
-  const [currentScan, setCurrentScan] = useState<ScanResult | null>(null);
-  const [error, setError] = useState<string>('');
-  const [showInfo, setShowInfo] = useState(false);
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const scannerElementId = 'qr-reader';
+  const lastScanRef = useRef<string>('');
 
-  const steps = ['Sélectionner Session', 'Scanner Étudiants'];
-
-  // Sons de feedback
-  const playSound = (type: 'success' | 'error' | 'warning') => {
-    const audio = new Audio(`/sounds/beep-${type}.mp3`);
-    audio.play().catch(() => {
-      // Si les sons ne sont pas disponibles, on ignore l'erreur
-      console.log('Son non disponible');
-    });
-  };
-
-  // Charger les sessions au démarrage
+  // Load courses on mount
   useEffect(() => {
-    loadSessions();
+    loadCourses();
+    return () => {
+      stopScanner();
+    };
   }, []);
 
-  const loadSessions = async () => {
+  const loadCourses = async () => {
     try {
-      const response = await api.get('/sessions');
-      setSessions(response.data.data || []);
+      const response = await api.get('/courses');
+      setCourses(response.data.data || []);
     } catch (err) {
-      console.error('Erreur chargement sessions:', err);
-      setError('Impossible de charger les sessions');
+      setError('Erreur lors du chargement des formations');
     }
   };
 
-  // Confirmer la session sélectionnée
-  const confirmSession = async () => {
-    if (!selectedSessionId) {
-      setError('Veuillez sélectionner une session');
+  const startScanner = async () => {
+    if (!selectedCourseId) {
+      setError('Veuillez sélectionner une formation');
       return;
     }
 
     try {
-      const response = await api.get(`/sessions/${selectedSessionId}`);
+      setScanResult(null);
+      setError(null);
 
-      const sessionData = response.data.data;
-      setSession(sessionData);
-      setActiveStep(1);
-      setAttendances([]);
-      setError('');
-      playSound('success');
-
-      // Démarrer automatiquement le scanner
-      setTimeout(() => startScanner(), 500);
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Session invalide';
-      setError(errorMessage);
-      playSound('error');
-    }
-  };
-
-  // Initialiser le scanner
-  const startScanner = async () => {
-    try {
-      if (scannerRef.current) {
-        await scannerRef.current.stop();
-        scannerRef.current = null;
-      }
-
-      const html5QrCode = new Html5Qrcode(scannerElementId);
-      scannerRef.current = html5QrCode;
-
-      await html5QrCode.start(
+      scannerRef.current = new Html5Qrcode('qr-reader');
+      await scannerRef.current.start(
         { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-        },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
         handleScan,
-        undefined
+        () => { } // Ignore errors during scanning
       );
-
       setIsScanning(true);
-      setError('');
     } catch (err) {
-      console.error('Erreur démarrage scanner:', err);
-      setError('Impossible de démarrer la caméra. Vérifiez les permissions.');
+      setError('Impossible d\'accéder à la caméra');
     }
   };
 
-  // Arrêter le scanner
   const stopScanner = async () => {
-    try {
-      if (scannerRef.current) {
+    if (scannerRef.current && isScanning) {
+      try {
         await scannerRef.current.stop();
         scannerRef.current = null;
+      } catch (err) {
+        // Ignore stop errors
       }
-      setIsScanning(false);
-    } catch (err) {
-      console.error('Erreur arrêt scanner:', err);
     }
+    setIsScanning(false);
   };
 
-  // Gérer le scan QR
   const handleScan = async (decodedText: string) => {
-    setCurrentScan(null);
-    setError('');
+    // Prevent duplicate scans
+    if (decodedText === lastScanRef.current) return;
+    lastScanRef.current = decodedText;
+
+    // Must be a student QR code
+    if (!decodedText.startsWith('STUDENT-')) {
+      setError('QR Code invalide. Utilisez un badge étudiant.');
+      return;
+    }
+
+    setLoading(true);
+    setScanResult(null);
+    setError(null);
 
     try {
-      // Scanner uniquement les badges étudiants
-      await validateStudentQr(decodedText);
+      // Call the new Scan API
+      const response = await api.post('/scan', {
+        qrCode: decodedText,
+        courseId: selectedCourseId,
+      });
+
+      setScanResult(response.data);
+
+      // Play sound based on result
+      playSound(response.data.allowed ? 'success' : 'error');
+
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Erreur inconnue';
-      setError(errorMessage);
-      playSound('error');
-    }
-  };
-
-  // Valider QR Étudiant et enregistrer présence
-  const validateStudentQr = async (studentQrCode: string) => {
-    try {
-      if (!session || !session.id) {
-        throw new Error('Veuillez sélectionner une session d\'abord');
+      // Handle 403 Forbidden (Access Denied)
+      if (err.response?.status === 403) {
+        setScanResult(err.response.data);
+        playSound('error');
+      } else {
+        setError(err.response?.data?.message || 'Erreur lors du scan');
       }
-
-      // Générer le sessionQrCode à partir de l'ID de session
-      // Format: SESSION-{id}-{date}-{timestamp}
-      const timestamp = Date.now();
-      const dateStr = new Date().toISOString().split('T')[0];
-      const sessionQrCode = `SESSION-${session.id}-${dateStr}-${timestamp}`;
-
-      // Appeler l'API de validation scan
-      const response = await api.post<{ success: boolean; data: ScanResult }>(
-        '/attendance/validate-scan',
-        {
-          sessionQrCode,
-          studentQrCode,
-        }
-      );
-
-      const result = response.data.data;
-
-      if (result.success) {
-        // Succès ou warning
-        const status = result.accessStatus?.status || 'granted';
-
-        if (status === 'granted') {
-          playSound('success');
-        } else if (status === 'warning') {
-          playSound('warning');
-        } else {
-          playSound('error');
-        }
-
-        // Ajouter à la liste des présences
-        if (result.attendance) {
-          setAttendances(prev => [result.attendance!, ...prev]);
-        }
-
-        setCurrentScan(result);
-
-        // Effacer le message après 3 secondes
-        setTimeout(() => setCurrentScan(null), 3000);
-      }
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Erreur lors de l\'enregistrement';
-      setError(errorMessage);
-      playSound('error');
-
-      // Effacer l'erreur après 3 secondes
-      setTimeout(() => setError(''), 3000);
+    } finally {
+      setLoading(false);
+      // Reset after 3 seconds to allow next scan
+      setTimeout(() => {
+        lastScanRef.current = '';
+        setScanResult(null);
+      }, 3000);
     }
   };
 
-  // Réinitialiser et recommencer
-  const resetScanner = async () => {
-    await stopScanner();
-    setActiveStep(0);
-    setSession(null);
-    setSelectedSessionId(null);
-    setAttendances([]);
-    setCurrentScan(null);
-    setError('');
-  };
+  const playSound = (type: 'success' | 'error') => {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-  // Nettoyage à la fermeture
-  useEffect(() => {
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(console.error);
-      }
-    };
-  }, []);
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
 
-  // Couleur selon statut
-  const getStatusColor = (status: 'granted' | 'warning' | 'denied'): 'success' | 'warning' | 'error' => {
-    switch (status) {
-      case 'granted':
-        return 'success';
-      case 'warning':
-        return 'warning';
-      case 'denied':
-        return 'error';
-      default:
-        return 'error';
-    }
-  };
+    oscillator.frequency.value = type === 'success' ? 800 : 300;
+    oscillator.type = 'sine';
+    gain.gain.value = 0.3;
 
-  const getStatusIcon = (status: 'granted' | 'warning' | 'denied') => {
-    switch (status) {
-      case 'granted':
-        return <CheckCircle color="success" />;
-      case 'warning':
-        return <Warning color="warning" />;
-      case 'denied':
-        return <Cancel color="error" />;
-      default:
-        return null;
-    }
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.2);
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          <QrCodeScanner sx={{ mr: 1, verticalAlign: 'middle' }} />
-          Scanner Présences QR
-        </Typography>
-        <IconButton color="primary" onClick={() => setShowInfo(true)}>
-          <Info />
-        </IconButton>
-      </Box>
+    <Box sx={{ maxWidth: 600, mx: 'auto', p: 2 }}>
+      <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <QrCodeScanner /> Scanner Accès
+      </Typography>
 
-      {/* Stepper */}
+      {/* Course Selection */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Stepper activeStep={activeStep} alternativeLabel>
-            {steps.map((label) => (
-              <Step key={label}>
-                <StepLabel>{label}</StepLabel>
-              </Step>
-            ))}
-          </Stepper>
+          <FormControl fullWidth>
+            <InputLabel>Formation</InputLabel>
+            <Select
+              value={selectedCourseId || ''}
+              label="Formation"
+              onChange={(e) => setSelectedCourseId(Number(e.target.value))}
+              disabled={isScanning}
+            >
+              {courses.map((course) => (
+                <MenuItem key={course.id} value={course.id}>
+                  {course.title} - {course.type}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </CardContent>
       </Card>
 
-      {/* Étape 1: Sélection Session */}
-      {activeStep === 0 && (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Sélectionner une Session
-            </Typography>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={8}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Session"
-                  value={selectedSessionId || ''}
-                  onChange={(e) => setSelectedSessionId(Number(e.target.value))}
-                >
-                  <MenuItem value="">
-                    <em>Sélectionner une session</em>
-                  </MenuItem>
-                  {sessions.map((sess) => (
-                    <MenuItem key={sess.id} value={sess.id}>
-                      {sess.courseTitle || `Formation #${sess.courseId}`} -{' '}
-                      {sess.monthLabel} {sess.year}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="large"
-                  fullWidth
-                  onClick={confirmSession}
-                  disabled={!selectedSessionId}
-                >
-                  Confirmer Session
-                </Button>
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Session Info */}
-      {session && activeStep === 1 && (
-        <Card sx={{ mb: 3, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
-          <CardContent>
-            <Typography variant="h6">Session Sélectionnée</Typography>
-            <Typography variant="body1">
-              <strong>{session.courseTitle || `Formation #${session.courseId}`}</strong>
-            </Typography>
-            <Typography variant="body2">
-              {session.monthLabel && `${session.monthLabel} ${session.year}`}
-            </Typography>
-            <Typography variant="body2">
-              Du {new Date(session.startDate).toLocaleDateString('fr-FR')}
-              {' au '}
-              {new Date(session.endDate).toLocaleDateString('fr-FR')}
-            </Typography>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Feedback actuel */}
-      {currentScan && currentScan.success && (
-        <Alert
-          severity={getStatusColor(currentScan.accessStatus!.status)}
-          sx={{ mb: 3 }}
-          icon={getStatusIcon(currentScan.accessStatus!.status)}
+      {/* Scanner Controls */}
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+        <Button
+          variant="contained"
+          color={isScanning ? 'error' : 'primary'}
+          startIcon={isScanning ? <Stop /> : <PlayArrow />}
+          onClick={isScanning ? stopScanner : startScanner}
+          disabled={!selectedCourseId && !isScanning}
         >
-          <AlertTitle>
-            {currentScan.accessStatus!.status === 'granted' ? 'Présence Enregistrée ✓' :
-              currentScan.accessStatus!.status === 'warning' ? 'Avertissement Paiement ⚠' :
-                'Accès Refusé ✗'}
-          </AlertTitle>
-          {currentScan.attendance && (
-            <Typography variant="body2">
-              <strong>
-                {currentScan.attendance.student?.firstName} {currentScan.attendance.student?.lastName}
-              </strong>
-            </Typography>
-          )}
-          <Typography variant="body2">{currentScan.accessStatus!.message}</Typography>
-        </Alert>
+          {isScanning ? 'Arrêter' : 'Démarrer Scanner'}
+        </Button>
+      </Stack>
+
+      {/* QR Reader */}
+      <Box
+        id="qr-reader"
+        sx={{
+          width: '100%',
+          height: 300,
+          backgroundColor: 'grey.900',
+          borderRadius: 2,
+          overflow: 'hidden',
+          display: isScanning ? 'block' : 'none',
+        }}
+      />
+
+      {/* Loading */}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <CircularProgress />
+        </Box>
       )}
 
-      {/* Erreur */}
+      {/* Error */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          <AlertTitle>Erreur</AlertTitle>
+        <Alert severity="error" sx={{ mt: 2 }}>
           {error}
         </Alert>
       )}
 
-      {/* Étape 2: Scanner */}
-      {activeStep === 1 && (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Box sx={{ textAlign: 'center' }}>
-              <div id={scannerElementId} style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }} />
-
-              {isScanning && <LinearProgress sx={{ mt: 2 }} />}
-
-              <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-                {!isScanning ? (
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<PlayArrow />}
-                    onClick={startScanner}
-                    size="large"
-                  >
-                    Démarrer Scanner
-                  </Button>
-                ) : (
-                  <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<Stop />}
-                    onClick={stopScanner}
-                    size="large"
-                  >
-                    Arrêter Scanner
-                  </Button>
-                )}
-
-                {session && (
-                  <Button
-                    variant="outlined"
-                    color="secondary"
-                    startIcon={<Refresh />}
-                    onClick={resetScanner}
-                    size="large"
-                  >
-                    Nouvelle Session
-                  </Button>
-                )}
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
+      {/* Scan Result */}
+      {scanResult && (
+        <Alert
+          severity={scanResult.allowed ? 'success' : 'error'}
+          sx={{ mt: 2 }}
+          icon={scanResult.allowed ? <CheckCircle /> : <Cancel />}
+        >
+          <AlertTitle>
+            {scanResult.allowed ? 'ACCÈS ACCORDÉ' : 'ACCÈS REFUSÉ'}
+          </AlertTitle>
+          <Typography variant="body1">
+            {scanResult.student && `${scanResult.student.firstName} ${scanResult.student.lastName}`}
+          </Typography>
+          <Chip
+            label={scanResult.reason}
+            color={scanResult.allowed ? 'success' : 'error'}
+            size="small"
+            sx={{ mt: 1 }}
+          />
+        </Alert>
       )}
-
-      {/* Liste des présences enregistrées */}
-      {attendances.length > 0 && (
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Présences Enregistrées ({attendances.length})
-            </Typography>
-            <List>
-              {attendances.map((attendance, index) => (
-                <React.Fragment key={attendance.id}>
-                  {index > 0 && <Divider />}
-                  <ListItem>
-                    <ListItemIcon>
-                      {attendance.accessStatus === 'granted' ? (
-                        <CheckCircle color="success" />
-                      ) : attendance.accessStatus === 'warning' ? (
-                        <Warning color="warning" />
-                      ) : (
-                        <Cancel color="error" />
-                      )}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body1">
-                            {attendance.student?.firstName} {attendance.student?.lastName}
-                          </Typography>
-                          <Chip
-                            label={attendance.status}
-                            size="small"
-                            color={
-                              attendance.status === 'present' ? 'success' :
-                                attendance.status === 'late' ? 'warning' :
-                                  'default'
-                            }
-                          />
-                        </Box>
-                      }
-                      secondary={new Date(attendance.scanTimestamp).toLocaleTimeString('fr-FR')}
-                    />
-                  </ListItem>
-                </React.Fragment>
-              ))}
-            </List>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Dialog Info */}
-      <Dialog open={showInfo} onClose={() => setShowInfo(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Comment utiliser le scanner QR</DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" paragraph>
-            <strong>Étape 1 : Sélectionner la session</strong>
-          </Typography>
-          <Typography variant="body2" paragraph>
-            Sélectionnez la session dans la liste déroulante puis cliquez sur "Confirmer Session".
-            Le scanner se lancera automatiquement pour scanner les badges étudiants.
-          </Typography>
-
-          <Typography variant="body1" paragraph>
-            <strong>Étape 2 : Scanner les badges étudiants</strong>
-          </Typography>
-          <Typography variant="body2" paragraph>
-            Une fois la session sélectionnée, scannez les badges QR des étudiants un par un.
-            Chaque scan enregistre automatiquement la présence.
-          </Typography>
-
-          <Typography variant="body1" paragraph>
-            <strong>Codes couleur :</strong>
-          </Typography>
-          <List dense>
-            <ListItem>
-              <ListItemIcon><CheckCircle color="success" /></ListItemIcon>
-              <ListItemText primary="Vert : Présence enregistrée, paiements à jour" />
-            </ListItem>
-            <ListItem>
-              <ListItemIcon><Warning color="warning" /></ListItemIcon>
-              <ListItemText primary="Orange : Présence enregistrée, retard paiement (0-15 jours)" />
-            </ListItem>
-            <ListItem>
-              <ListItemIcon><Cancel color="error" /></ListItemIcon>
-              <ListItemText primary="Rouge : Accès refusé, retard paiement >15 jours" />
-            </ListItem>
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowInfo(false)}>Fermer</Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
-};
-
-export default QRScanner;
+}

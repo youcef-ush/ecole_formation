@@ -1,51 +1,35 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToOne,
-} from 'typeorm';
-import { Student } from './Student.entity';
-import { Trainer } from './Trainer.entity';
+
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeorm";
 
 export enum UserRole {
-  ADMIN = 'admin',
-  TRAINER = 'trainer',
-  STUDENT = 'student',
+  ADMIN = "ADMIN",
+  STAFF = "STAFF",
+  TRAINER = "TRAINER"
 }
 
-@Entity('users')
+@Entity("users")
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ name: "first_name" })
+  firstName: string;
+
+  @Column({ name: "last_name" })
+  lastName: string;
+
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ select: false })
   password: string;
 
-  @Column({
-    type: 'enum',
-    enum: UserRole,
-    default: UserRole.STUDENT,
-  })
+  @Column({ type: "enum", enum: UserRole, default: UserRole.STAFF })
   role: UserRole;
 
-  @Column({ default: true })
+  @Column({ name: "is_active", default: true })
   isActive: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: "created_at" })
   createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
-  // Relations
-  @OneToOne(() => Student, (student) => student.user)
-  student: Student;
-
-  @OneToOne(() => Trainer, (trainer) => trainer.user)
-  trainer: Trainer;
 }

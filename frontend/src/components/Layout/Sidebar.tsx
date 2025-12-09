@@ -13,14 +13,9 @@ import DashboardIcon from '@mui/icons-material/Dashboard'
 import SchoolIcon from '@mui/icons-material/School'
 import PersonIcon from '@mui/icons-material/Person'
 import BookIcon from '@mui/icons-material/Book'
-import EventIcon from '@mui/icons-material/Event'
 import AppRegistrationIcon from '@mui/icons-material/AppRegistration'
-import MeetingRoomIcon from '@mui/icons-material/MeetingRoom'
-import AccessTimeIcon from '@mui/icons-material/AccessTime'
-import ScheduleIcon from '@mui/icons-material/Schedule'
-import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import PaymentIcon from '@mui/icons-material/Payment'
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 interface SidebarProps {
@@ -31,17 +26,12 @@ interface SidebarProps {
 
 const menuItems = [
   { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/' },
-  { text: 'Scanner Présences', icon: <QrCodeScannerIcon />, path: '/qr-scanner' },
-  { text: 'Gestion Présences', icon: <CheckCircleIcon />, path: '/attendances' },
-  { text: 'Inscriptions', icon: <AppRegistrationIcon />, path: '/registrations' },
+  { text: 'Scanner Accès', icon: <QrCodeScannerIcon />, path: '/qr-scanner' },
+  { text: 'Inscriptions', icon: <AppRegistrationIcon />, path: '/enrollments' },
+  { text: 'Paiements', icon: <PaymentIcon />, path: '/payments' },
   { text: 'Étudiants', icon: <SchoolIcon />, path: '/students' },
   { text: 'Formateurs', icon: <PersonIcon />, path: '/trainers' },
   { text: 'Formations', icon: <BookIcon />, path: '/courses' },
-  { text: 'Sessions', icon: <EventIcon />, path: '/sessions' },
-  { text: 'Échéanciers', icon: <ScheduleIcon />, path: '/payment-schedules' },
-  { text: 'Retards de Paiement', icon: <WarningAmberIcon />, path: '/overdue-payments' },
-  { text: 'Salles', icon: <MeetingRoomIcon />, path: '/rooms' },
-  { text: 'Créneaux', icon: <AccessTimeIcon />, path: '/timeslots' },
 ]
 
 export default function Sidebar({ drawerWidth, mobileOpen, onDrawerToggle }: SidebarProps) {

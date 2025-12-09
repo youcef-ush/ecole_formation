@@ -1,50 +1,27 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToOne,
-  OneToMany,
-  JoinColumn,
-} from 'typeorm';
-import { User } from './User.entity';
-import { Session } from './Session.entity';
 
-@Entity('trainers')
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn } from "typeorm";
+import { Course } from "./Course.entity";
+
+@Entity("trainers")
 export class Trainer {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: "first_name" })
   firstName: string;
 
-  @Column()
+  @Column({ name: "last_name" })
   lastName: string;
 
-  @Column()
+  @Column({ nullable: true })
   phone: string;
 
-  @Column({ type: 'jsonb', nullable: true })
-  specialties: string[];
+  @Column({ nullable: true })
+  specialty: string;
 
-  @Column({ type: 'text', nullable: true })
-  bio: string;
-
-  @CreateDateColumn()
+  @CreateDateColumn({ name: "created_at" })
   createdAt: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
-
-  // Relations
-  @OneToOne(() => User, (user) => user.trainer)
-  @JoinColumn()
-  user: User;
-
-  @Column()
-  userId: number;
-
-  @OneToMany(() => Session, (session) => session.trainer)
-  sessions: Session[];
+  @OneToMany(() => Course, (course) => course.trainer)
+  courses: Course[];
 }

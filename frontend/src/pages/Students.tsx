@@ -24,7 +24,6 @@ import {
   Snackbar,
   Alert,
 } from '@mui/material'
-import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import api from '../services/api'
 
@@ -58,7 +57,7 @@ export default function Students() {
   const [openAffectationDialog, setOpenAffectationDialog] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [selectedCourseId, setSelectedCourseId] = useState('')
-  
+
   // Snackbar notification states
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -248,10 +247,10 @@ export default function Students() {
                   </TableCell>
                   <TableCell>{student.phone}</TableCell>
                   <TableCell>
-                    <Chip 
-                      label={getStudentCourse(student)} 
+                    <Chip
+                      label={getStudentCourse(student)}
                       color={getStudentCourse(student) === 'Autre formation' ? 'default' : 'primary'}
-                      size="small" 
+                      size="small"
                       variant="outlined"
                     />
                   </TableCell>
@@ -347,9 +346,9 @@ export default function Students() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDetails(false)}>Fermer</Button>
-          <Button 
-            variant="outlined" 
-            color="success" 
+          <Button
+            variant="outlined"
+            color="success"
             onClick={() => {
               setOpenDetails(false)
               setOpenAffectationDialog(true)
@@ -485,10 +484,10 @@ export default function Students() {
           }} disabled={affectationMutation.isPending}>
             Annuler
           </Button>
-          <Button 
-            onClick={handleAffectation} 
-            variant="contained" 
-            color="success" 
+          <Button
+            onClick={handleAffectation}
+            variant="contained"
+            color="success"
             disabled={affectationMutation.isPending}
           >
             {affectationMutation.isPending ? 'Affectation...' : 'Affecter'}

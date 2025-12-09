@@ -1,91 +1,20 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToMany,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
-import { Session } from './Session.entity';
-import { Room } from './Room.entity';
-import { TimeSlot } from './TimeSlot.entity';
-import { Trainer } from './Trainer.entity';
 
-export enum CourseCategory {
-  TUTORING = 'Soutien scolaire',
-  PROFESSIONAL = 'Formation professionnelle',
-  PERSONAL_DEV = 'Développement personnel',
-  LANGUAGES = 'Langues',
-  COOKING = 'Cuisine',
-  SEWING = 'Couture',
-  IT = 'Informatique',
-  OTHER = 'Autre',
-}
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany, CreateDateColumn } from "typeorm";
+import { Trainer } from "./Trainer.entity";
+import { Enrollment } from "./Enrollment.entity";
+import { AccessLog } from "./AccessLog.entity";
 
 export enum CourseType {
-  QUALIFYING = 'QUALIFYING',
-  TUTORING_GROUP = 'TUTORING_GROUP',
-  TUTORING_INDIVIDUAL = 'TUTORING_INDIVIDUAL',
-  TUTORING_ONLINE = 'TUTORING_ONLINE',
+  ABONNEMENT = "ABONNEMENT",
+  PACK_HEURES = "PACK_HEURES"
 }
 
-export enum CourseCertificate {
-  SCHOOL_CERTIFICATE = 'Certificat école',
-  CQP = 'CQP',
-  STATE_DIPLOMA = 'Diplôme État',
-  NONE = 'Aucun',
+export enum PriceModel {
+  MONTHLY = "MONTHLY",
+  GLOBAL = "GLOBAL"
 }
 
-// Niveaux scolaires
-export enum SchoolLevel {
-  // Primaire
-  PRIMAIRE_1 = '1ère année primaire',
-  PRIMAIRE_2 = '2ème année primaire',
-  PRIMAIRE_3 = '3ème année primaire',
-  PRIMAIRE_4 = '4ème année primaire',
-  PRIMAIRE_5 = '5ème année primaire',
-  // Collège (CEM)
-  CEM_1 = '1ère année collège',
-  CEM_2 = '2ème année collège',
-  CEM_3 = '3ème année collège',
-  CEM_4 = '4ème année collège (BEM)',
-  // Lycée
-  LYCEE_1 = '1ère année secondaire',
-  LYCEE_2 = '2ème année secondaire',
-  LYCEE_3 = '3ème année secondaire (BAC)',
-}
-
-// Branches du lycée
-export enum LyceeBranch {
-  SCIENCES = 'Sciences Expérimentales',
-  MATH = 'Mathématiques',
-  TECH_MATH = 'Techniques Mathématiques',
-  GESTION = 'Gestion et Économie',
-  LETTRES = 'Lettres et Philosophie',
-  LANGUES = 'Langues Étrangères',
-}
-
-// Matières/Modules
-export enum SubjectModule {
-  // Matières scientifiques
-  MATH = 'Mathématiques',
-  PHYSICS = 'Physique',
-  CHEMISTRY = 'Chimie',
-  SCIENCES = 'Sciences Naturelles',
-  // Langues
-  ARABIC = 'Arabe',
-  FRENCH = 'Français',
-  ENGLISH = 'Anglais',
-  // Autres
-  HISTORY = 'Histoire-Géographie',
-  PHILOSOPHY = 'Philosophie',
-  ISLAMIC = 'Éducation Islamique',
-  CIVIC = 'Éducation Civique',
-}
-
-@Entity('courses')
+@Entity("courses")
 export class Course {
   @PrimaryGeneratedColumn()
   id: number;
@@ -93,117 +22,42 @@ export class Course {
   @Column()
   title: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: "text", nullable: true })
   description: string;
 
-  @Column({
-    type: 'enum',
-    enum: CourseCategory,
-    default: CourseCategory.OTHER,
-  })
-  category: CourseCategory;
-
-  @Column({
-    type: 'enum',
-    enum: CourseType,
-    default: CourseType.QUALIFYING,
-  })
-  type: CourseType;
-
-  @Column({
-    type: 'enum',
-    enum: CourseCertificate,
-    default: CourseCertificate.SCHOOL_CERTIFICATE,
-  })
-  certificate: CourseCertificate;
-
-  @Column({ type: 'int' })
-  durationHours: number;
-
-  @Column({ type: 'varchar', nullable: true })
-  durationDescription: string; // Ex: "3 mois", "6 semaines"
-
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
-  price: number;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  pricePerSession: number; // Pour les cours particuliers
-
-  @Column({ type: 'int', nullable: true })
-  durationMonths: number; // Durée en mois pour les échéanciers
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  pricePerMonth: number; // Prix mensuel pour les échéanciers
-
-  @Column({ type: 'date', nullable: true })
-  startDate: Date; // Date de début de la formation
-
-  @Column({ type: 'date', nullable: true })
-  endDate: Date; // Date de fin de la formation
-
-  @Column({ type: 'text', nullable: true })
-  prerequisites: string;
-
-  @Column({ type: 'int', default: 16 })
-  minAge: number;
-
-  @Column({ type: 'int', nullable: true })
-  maxStudents: number; // Capacité max pour les cours en groupe
-
-  @Column({ type: 'text', nullable: true })
-  practicalContent: string; // Contenu pratique
-
-  // Champs spécifiques pour cours de soutien
-  @Column({ type: 'varchar', nullable: true })
-  teacherName: string; // Nom de l'enseignant - legacy
-
-  @Column({ type: 'varchar', nullable: true })
-  room: string; // Salle (ex: "Salle 101", "Bloc A") - legacy
-
-  @Column({ type: 'varchar', nullable: true })
-  schedule: string; // Créneaux horaires (ex: "Lundi 14h-16h, Mercredi 10h-12h") - legacy
-
-  // Relations vers Trainer, Room et TimeSlot (nouvelles)
-  @ManyToOne(() => Trainer, { nullable: true, eager: true })
-  @JoinColumn({ name: 'trainerId' })
-  trainer: Trainer;
-
-  @Column({ nullable: true })
+  @Column({ name: "trainer_id", nullable: true })
   trainerId: number;
 
-  @ManyToOne(() => Room, { nullable: true, eager: true })
-  @JoinColumn({ name: 'roomId' })
-  roomEntity: Room;
+  @ManyToOne(() => Trainer, (trainer) => trainer.courses, { onDelete: "SET NULL" })
+  @JoinColumn({ name: "trainer_id" })
+  trainer: Trainer;
 
-  @Column({ nullable: true })
-  roomId: number;
+  // Finance
+  @Column("decimal", { name: "total_price", precision: 10, scale: 2 })
+  totalPrice: number;
 
-  @ManyToOne(() => TimeSlot, { nullable: true, eager: true })
-  @JoinColumn({ name: 'timeSlotId' })
-  timeSlotEntity: TimeSlot;
+  @Column("decimal", { name: "registration_fee", precision: 10, scale: 2, default: 0 })
+  registrationFee: number;
 
-  @Column({ nullable: true })
-  timeSlotId: number;
+  // Configuration
+  @Column({ name: "duration_months", default: 1 })
+  durationMonths: number;
 
-  @Column({ type: 'simple-array', nullable: true })
-  schoolLevels: string[]; // Niveaux scolaires acceptés
+  @Column({ type: "enum", enum: CourseType, default: CourseType.ABONNEMENT })
+  type: CourseType;
 
-  @Column({ type: 'simple-array', nullable: true })
-  lyceeBranches: string[]; // Branches du lycée (si applicable)
+  @Column({ type: "enum", enum: PriceModel, name: "price_model", default: PriceModel.MONTHLY })
+  priceModel: PriceModel;
 
-  @Column({ type: 'varchar', nullable: true })
-  subjectModule: string; // Matière/Module enseigné
-
-  @Column({ default: true })
+  @Column({ name: "is_active", default: true })
   isActive: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: "created_at" })
   createdAt: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @OneToMany(() => Enrollment, (enrollment) => enrollment.course)
+  enrollments: Enrollment[];
 
-  // Relations
-  @OneToMany(() => Session, (session) => session.course)
-  sessions: Session[];
+  @OneToMany(() => AccessLog, (log) => log.course)
+  accessLogs: AccessLog[];
 }

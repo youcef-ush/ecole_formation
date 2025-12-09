@@ -1,426 +1,295 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
   Button,
-  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  CircularProgress,
+  Paper,
   Chip,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   TextField,
-  MenuItem,
-  Tooltip,
-  Alert,
-} from '@mui/material'
-import AddIcon from '@mui/icons-material/Add'
-import DeleteIcon from '@mui/icons-material/Delete'
-import VisibilityIcon from '@mui/icons-material/Visibility'
-import api from '../services/api'
-
-interface Enrollment {
-  id: number
-  status: string
-  notes?: string
-  enrolledAt: string
-  updatedAt: string
-  studentId: number
-  sessionId: number
-  student: {
-    id: number
-    firstName: string
-    lastName: string
-    email?: string
-  }
-  session: {
-    id: number
-    startDate: string
-    endDate: string
-    monthLabel?: string
-    course: {
-      id: number
-      title: string
-      price: number
-    }
-  }
-  payments?: Array<{
-    id: number
-    amount: number
-    paymentDate: string
-  }>
-}
+  Autocomplete,
+} from '@mui/material';
+import { Add, Visibility } from '@mui/icons-material';
+import api from '../services/api';
 
 interface Student {
-  id: number
-  firstName: string
-  lastName: string
-  email?: string
+  id: number;
+  firstName: string;
+  lastName: string;
 }
 
-interface Session {
-  id: number
-  startDate: string
-  endDate: string
-  monthLabel: string
-  course: {
-    id: number
-    title: string
-    price: number
-  }
+interface Course {
+  id: number;
+  title: string;
+  totalPrice: number;
+  type: string;
+}
+
+interface PaymentPlan {
+  id: number;
+  name: string;
+  installmentsCount: number;
+  intervalDays: number;
+}
+
+interface Enrollment {
+  id: number;
+  studentId: number;
+  courseId: number;
+  startDate: string;
+  status: string;
+  student?: Student;
+  course?: Course;
+  installments?: Installment[];
+}
+
+interface Installment {
+  id: number;
+  dueDate: string;
+  amount: number;
+  isPaid: boolean;
 }
 
 export default function Enrollments() {
-  const queryClient = useQueryClient()
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
-  const [openDialog, setOpenDialog] = useState(false)
-  const [openNewEnrollment, setOpenNewEnrollment] = useState(false)
-  const [newEnrollmentData, setNewEnrollmentData] = useState({
-    sessionId: '',
-    notes: '',
-  })
-  const { data: enrollments, isLoading } = useQuery<Enrollment[]>({
-    queryKey: ['enrollments'],
-    queryFn: async () => {
-      const response = await api.get('/enrollments')
-      return response.data.data || response.data
-    },
-  })
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [paymentPlans, setPaymentPlans] = useState<PaymentPlan[]>([]);
+  const [, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  // Récupérer les sessions disponibles pour l'ajout
-  const { data: sessions } = useQuery<Session[]>({
-    queryKey: ['sessions'],
-    queryFn: async () => {
-      const response = await api.get('/sessions')
-      return response.data.data || response.data
-    },
-  })
+  // Dialog state
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<number | ''>('');
 
-  // Récupérer les inscriptions d'un étudiant spécifique
-  const { data: studentEnrollments } = useQuery<Enrollment[]>({
-    queryKey: ['student-enrollments', selectedStudent?.id],
-    queryFn: async () => {
-      if (!selectedStudent) return []
-      const response = await api.get('/enrollments')
-      const allEnrollments = response.data.data || response.data
-      return allEnrollments.filter((e: Enrollment) => e.studentId === selectedStudent.id)
-    },
-    enabled: !!selectedStudent,
-  })
+  // View installments dialog
+  const [viewEnrollment, setViewEnrollment] = useState<Enrollment | null>(null);
 
-  // Mutation pour ajouter une inscription
-  const addEnrollmentMutation = useMutation({
-    mutationFn: async (data: { studentId: number; sessionId: number; notes: string }) => {
-      const response = await api.post('/enrollments', data)
-      return response.data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['enrollments'] })
-      queryClient.invalidateQueries({ queryKey: ['student-enrollments'] })
-      setOpenNewEnrollment(false)
-      setNewEnrollmentData({ sessionId: '', notes: '' })
-    },
-  })
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  // Mutation pour supprimer une inscription
-  const deleteEnrollmentMutation = useMutation({
-    mutationFn: async (enrollmentId: number) => {
-      await api.delete(`/enrollments/${enrollmentId}`)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['enrollments'] })
-      queryClient.invalidateQueries({ queryKey: ['student-enrollments'] })
-    },
-  })
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [studentsRes, coursesRes, plansRes] = await Promise.all([
+        api.get('/students'),
+        api.get('/courses'),
+        api.get('/payment-plans').catch(() => ({ data: { data: [] } })), // Fallback if endpoint doesn't exist yet
+      ]);
 
-  const handleViewStudent = (student: Student) => {
-    setSelectedStudent(student)
-    setOpenDialog(true)
-  }
+      setStudents(studentsRes.data.data || []);
+      setCourses(coursesRes.data.data || []);
+      setPaymentPlans(plansRes.data?.data || [
+        { id: 1, name: 'Paiement Unique', installmentsCount: 1, intervalDays: 0 },
+        { id: 2, name: 'Mensuel', installmentsCount: 3, intervalDays: 30 },
+        { id: 3, name: '3 Tranches', installmentsCount: 3, intervalDays: 30 },
+      ]);
+
+      // Load enrollments (we don't have a list endpoint yet, so we'll skip for now)
+      setEnrollments([]);
+    } catch (err) {
+      setError('Erreur lors du chargement des données');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!selectedStudent || !selectedCourse || !selectedPlan) {
+      setError('Veuillez remplir tous les champs');
+      return;
+    }
+
+    try {
+      const response = await api.post('/enrollments', {
+        studentId: selectedStudent.id,
+        courseId: selectedCourse.id,
+        paymentPlanId: selectedPlan,
+      });
+
+      const newEnrollment = response.data;
+      setEnrollments([newEnrollment, ...enrollments]);
+      setSuccess('Inscription créée avec succès!');
+      handleCloseDialog();
+
+      // Show installments dialog
+      setTimeout(() => {
+        setViewEnrollment(newEnrollment);
+      }, 500);
+
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erreur lors de la création');
+    }
+  };
 
   const handleCloseDialog = () => {
-    setOpenDialog(false)
-    setSelectedStudent(null)
-  }
-
-  const handleAddEnrollment = () => {
-    if (selectedStudent && newEnrollmentData.sessionId) {
-      addEnrollmentMutation.mutate({
-        studentId: selectedStudent.id,
-        sessionId: parseInt(newEnrollmentData.sessionId),
-        notes: newEnrollmentData.notes,
-      })
-    }
-  }
-
-  const handleDeleteEnrollment = (enrollmentId: number) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cette inscription ?')) {
-      deleteEnrollmentMutation.mutate(enrollmentId)
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'En attente':
-        return 'warning'
-      case 'Payé':
-        return 'success'
-      case 'Annulé':
-        return 'error'
-      default:
-        return 'default'
-    }
-  }
-
-  const getStatusLabel = (status: string) => {
-    return status
-  }
-
-  // Calculer le montant total et payé
-  const getTotalAmount = (enrollment: Enrollment) => {
-    return enrollment.session?.course?.price || 0
-  }
-
-  const getPaidAmount = (enrollment: Enrollment) => {
-    if (!enrollment.payments || enrollment.payments.length === 0) return 0
-    return enrollment.payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
-  }
-
-  if (isLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    )
-  }
+    setOpenDialog(false);
+    setSelectedStudent(null);
+    setSelectedCourse(null);
+    setSelectedPlan('');
+  };
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography variant="h4" gutterBottom fontWeight={600}>
-            Inscriptions
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Gérez les inscriptions des étudiants
-          </Typography>
-        </Box>
-        <Button variant="contained" startIcon={<AddIcon />}>
-          Nouvelle inscription
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h4">Inscriptions</Typography>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => setOpenDialog(true)}
+        >
+          Nouvelle Inscription
         </Button>
       </Box>
 
+      {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" onClose={() => setSuccess(null)} sx={{ mb: 2 }}>{success}</Alert>}
+
+      {/* Enrollments Table */}
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>ID</TableCell>
               <TableCell>Étudiant</TableCell>
               <TableCell>Formation</TableCell>
-              <TableCell>Date d'inscription</TableCell>
-              <TableCell>Montant total</TableCell>
-              <TableCell>Montant payé</TableCell>
+              <TableCell>Date Début</TableCell>
               <TableCell>Statut</TableCell>
-              <TableCell align="center">Actions</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {enrollments && enrollments.length > 0 ? (
+            {enrollments.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} align="center">
+                  Aucune inscription. Cliquez sur "Nouvelle Inscription" pour commencer.
+                </TableCell>
+              </TableRow>
+            ) : (
               enrollments.map((enrollment) => (
-                <TableRow key={enrollment.id} hover>
-                  <TableCell>{enrollment.id}</TableCell>
+                <TableRow key={enrollment.id}>
                   <TableCell>
-                    <Button
-                      variant="text"
-                      onClick={() => handleViewStudent(enrollment.student)}
-                      sx={{ textTransform: 'none' }}
-                    >
-                      {enrollment.student?.firstName} {enrollment.student?.lastName}
-                    </Button>
+                    {enrollment.student?.firstName} {enrollment.student?.lastName}
                   </TableCell>
-                  <TableCell>{enrollment.session?.course?.title || 'N/A'}</TableCell>
-                  <TableCell>
-                    {new Date(enrollment.enrolledAt).toLocaleDateString('fr-FR')}
-                  </TableCell>
-                  <TableCell>{getTotalAmount(enrollment).toLocaleString()} DA</TableCell>
-                  <TableCell>{getPaidAmount(enrollment).toLocaleString()} DA</TableCell>
+                  <TableCell>{enrollment.course?.title}</TableCell>
+                  <TableCell>{enrollment.startDate}</TableCell>
                   <TableCell>
                     <Chip
-                      label={getStatusLabel(enrollment.status)}
-                      color={getStatusColor(enrollment.status) as any}
+                      label={enrollment.status}
+                      color={enrollment.status === 'ACTIVE' ? 'success' : 'default'}
                       size="small"
                     />
                   </TableCell>
-                  <TableCell align="center">
-                    <Tooltip title="Voir les formations de l'étudiant">
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        onClick={() => handleViewStudent(enrollment.student)}
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                    </Tooltip>
+                  <TableCell>
+                    <IconButton onClick={() => setViewEnrollment(enrollment)}>
+                      <Visibility />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={8} align="center">
-                  Aucune inscription trouvée
-                </TableCell>
-              </TableRow>
             )}
           </TableBody>
         </Table>
       </TableContainer>
 
-      {/* Dialog pour voir toutes les formations d'un étudiant */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>
-          Formations de {selectedStudent?.firstName} {selectedStudent?.lastName}
-        </DialogTitle>
+      {/* Create Dialog */}
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Nouvelle Inscription</DialogTitle>
         <DialogContent>
-          {studentEnrollments && studentEnrollments.length > 0 ? (
-            <Box>
-              <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Formation</TableCell>
-                      <TableCell>Session</TableCell>
-                      <TableCell>Date d'inscription</TableCell>
-                      <TableCell>Montant</TableCell>
-                      <TableCell>Statut</TableCell>
-                      <TableCell align="center">Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {studentEnrollments.map((enrollment) => (
-                      <TableRow key={enrollment.id}>
-                        <TableCell>{enrollment.session?.course?.title}</TableCell>
-                        <TableCell>
-                          {enrollment.session?.monthLabel || 
-                           new Date(enrollment.session?.startDate).toLocaleDateString('fr-FR')}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(enrollment.enrolledAt).toLocaleDateString('fr-FR')}
-                        </TableCell>
-                        <TableCell>
-                          {enrollment.session?.course?.price?.toLocaleString()} DA
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={enrollment.status}
-                            color={getStatusColor(enrollment.status) as any}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell align="center">
-                          <Tooltip title="Supprimer l'inscription">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleDeleteEnrollment(enrollment.id)}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <Autocomplete
+              options={students}
+              getOptionLabel={(option) => `${option.firstName} ${option.lastName}`}
+              value={selectedStudent}
+              onChange={(_, value) => setSelectedStudent(value)}
+              renderInput={(params) => <TextField {...params} label="Étudiant" />}
+            />
 
-              <Box mt={3}>
-                <Button
-                  variant="outlined"
-                  startIcon={<AddIcon />}
-                  onClick={() => setOpenNewEnrollment(true)}
-                  fullWidth
-                >
-                  Ajouter une nouvelle formation
-                </Button>
-              </Box>
+            <Autocomplete
+              options={courses}
+              getOptionLabel={(option) => `${option.title} - ${option.totalPrice} DA`}
+              value={selectedCourse}
+              onChange={(_, value) => setSelectedCourse(value)}
+              renderInput={(params) => <TextField {...params} label="Formation" />}
+            />
 
-              {openNewEnrollment && (
-                <Box mt={2} p={2} bgcolor="grey.50" borderRadius={1}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Nouvelle inscription
-                  </Typography>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Session"
-                    value={newEnrollmentData.sessionId}
-                    onChange={(e) =>
-                      setNewEnrollmentData({ ...newEnrollmentData, sessionId: e.target.value })
-                    }
-                    margin="normal"
-                    size="small"
-                  >
-                    {sessions?.map((session) => (
-                      <MenuItem key={session.id} value={session.id}>
-                        {session.course?.title} - {session.monthLabel || 
-                         new Date(session.startDate).toLocaleDateString('fr-FR')}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <TextField
-                    fullWidth
-                    label="Notes (optionnel)"
-                    value={newEnrollmentData.notes}
-                    onChange={(e) =>
-                      setNewEnrollmentData({ ...newEnrollmentData, notes: e.target.value })
-                    }
-                    margin="normal"
-                    size="small"
-                    multiline
-                    rows={2}
-                  />
-                  <Box mt={2} display="flex" gap={1}>
-                    <Button
-                      variant="contained"
-                      onClick={handleAddEnrollment}
-                      disabled={!newEnrollmentData.sessionId}
-                      size="small"
-                    >
-                      Ajouter
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      onClick={() => {
-                        setOpenNewEnrollment(false)
-                        setNewEnrollmentData({ sessionId: '', notes: '' })
-                      }}
-                      size="small"
-                    >
-                      Annuler
-                    </Button>
-                  </Box>
-                </Box>
-              )}
-            </Box>
+            <FormControl fullWidth>
+              <InputLabel>Plan de Paiement</InputLabel>
+              <Select
+                value={selectedPlan}
+                label="Plan de Paiement"
+                onChange={(e) => setSelectedPlan(Number(e.target.value))}
+              >
+                {paymentPlans.map((plan) => (
+                  <MenuItem key={plan.id} value={plan.id}>
+                    {plan.name} ({plan.installmentsCount} échéance{plan.installmentsCount > 1 ? 's' : ''})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Annuler</Button>
+          <Button variant="contained" onClick={handleCreate}>Créer</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* View Installments Dialog */}
+      <Dialog open={!!viewEnrollment} onClose={() => setViewEnrollment(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Échéancier</DialogTitle>
+        <DialogContent>
+          {viewEnrollment?.installments && viewEnrollment.installments.length > 0 ? (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Date</TableCell>
+                  <TableCell>Montant</TableCell>
+                  <TableCell>Statut</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {viewEnrollment.installments.map((inst, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>{inst.dueDate}</TableCell>
+                    <TableCell>{inst.amount} DA</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={inst.isPaid ? 'Payé' : 'À payer'}
+                        color={inst.isPaid ? 'success' : 'warning'}
+                        size="small"
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           ) : (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              Aucune formation pour cet étudiant
-            </Alert>
+            <Typography>Aucune échéance trouvée.</Typography>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Fermer</Button>
+          <Button onClick={() => setViewEnrollment(null)}>Fermer</Button>
         </DialogActions>
       </Dialog>
     </Box>
-  )
+  );
 }

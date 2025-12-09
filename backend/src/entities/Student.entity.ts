@@ -1,80 +1,40 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToOne,
-  OneToMany,
-  JoinColumn,
-} from 'typeorm';
-import { User } from './User.entity';
-import { Enrollment } from './Enrollment.entity';
 
-@Entity('students')
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn } from "typeorm";
+import { Enrollment } from "./Enrollment.entity";
+import { AccessLog } from "./AccessLog.entity";
+
+@Entity("students")
 export class Student {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: "first_name" })
   firstName: string;
 
-  @Column()
+  @Column({ name: "last_name" })
   lastName: string;
 
-  @Column({ type: 'date' })
-  dateOfBirth: Date;
+  @Column({ type: "date", name: "birth_date", nullable: true })
+  birthDate: string;
 
-  @Column()
+  @Column({ nullable: true })
   phone: string;
 
   @Column({ nullable: true })
-  address: string;
+  email: string;
 
-  @Column({ nullable: true })
-  city: string;
-
-  @Column({ nullable: true })
-  postalCode: string;
-
-  // Badge QR Code (généré lors de la validation de l'inscription)
-  @Column({ unique: true, nullable: true })
-  badgeQrCode: string;
-
-  // Date d'expiration du badge (renouvelable chaque année)
-  @Column({ type: 'date', nullable: true })
-  badgeExpiry: Date;
-
-  // Statut actif/inactif de l'étudiant
-  @Column({ default: true })
-  isActive: boolean;
-
-  // Contact d'urgence
-  @Column({ nullable: true })
-  emergencyContact: string;
-
-  // Niveau scolaire (ex: "Lycée", "Université", "Professionnel")
-  @Column({ nullable: true })
-  schoolLevel: string;
-
-  // Code QR unique pour chaque étudiant (DÉPRÉCIÉ - utiliser badgeQrCode)
-  @Column({ unique: true, nullable: true })
+  @Column({ name: "qr_code", unique: true })
   qrCode: string;
 
-  @CreateDateColumn()
+  @Column({ type: "text", nullable: true })
+  address: string;
+
+  @CreateDateColumn({ name: "created_at" })
   createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
-  // Relations
-  @OneToOne(() => User, (user) => user.student)
-  @JoinColumn()
-  user: User;
-
-  @Column()
-  userId: number;
 
   @OneToMany(() => Enrollment, (enrollment) => enrollment.student)
   enrollments: Enrollment[];
+
+  @OneToMany(() => AccessLog, (log) => log.student)
+  accessLogs: AccessLog[];
 }

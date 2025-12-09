@@ -7,15 +7,10 @@ import Students from './pages/Students'
 import StudentDetail from './pages/StudentDetail'
 import Trainers from './pages/Trainers'
 import Courses from './pages/Courses'
-import Sessions from './pages/Sessions'
-import Registrations from './pages/Registrations'
-import Rooms from './pages/Rooms'
-import TimeSlots from './pages/TimeSlots'
-import PaymentSchedules from './pages/PaymentSchedules'
-import OverduePayments from './pages/OverduePayments'
+import Enrollments from './pages/Enrollments'
 import PrintReceipt from './pages/PrintReceipt'
 import QRScanner from './pages/QRScanner'
-import AttendanceManagement from './pages/AttendanceManagement'
+import Payments from './pages/Payments'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore()
@@ -40,14 +35,9 @@ function App() {
         <Route path="students/:id" element={<StudentDetail />} />
         <Route path="trainers" element={<Trainers />} />
         <Route path="courses" element={<Courses />} />
-        <Route path="sessions" element={<Sessions />} />
-        <Route path="registrations" element={<Registrations />} />
-        <Route path="payment-schedules" element={<PaymentSchedules />} />
-        <Route path="overdue-payments" element={<OverduePayments />} />
-        <Route path="rooms" element={<Rooms />} />
-        <Route path="timeslots" element={<TimeSlots />} />
+        <Route path="enrollments" element={<Enrollments />} />
+        <Route path="payments" element={<Payments />} />
         <Route path="qr-scanner" element={<QRScanner />} />
-        <Route path="attendances" element={<AttendanceManagement />} />
       </Route>
     </Routes>
   )

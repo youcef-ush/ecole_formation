@@ -21,7 +21,6 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import api from '../services/api'
-import CourseFormNew from '../components/CourseFormNew'
 
 interface Course {
   id: number
@@ -35,12 +34,11 @@ interface Course {
 
 export default function Courses() {
   const queryClient = useQueryClient()
-  const [openForm, setOpenForm] = useState(false)
   const [openDetails, setOpenDetails] = useState(false)
   const [openEdit, setOpenEdit] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  
+
   const { data: courses, isLoading } = useQuery<Course[]>({
     queryKey: ['courses'],
     queryFn: async () => {
@@ -111,16 +109,14 @@ export default function Courses() {
             Catalogue de formations disponibles
           </Typography>
         </Box>
-        <Button 
-          variant="contained" 
+        <Button
+          variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => setOpenForm(true)}
+          disabled
         >
           Ajouter une formation
         </Button>
       </Box>
-
-      <CourseFormNew open={openForm} onClose={() => setOpenForm(false)} />
 
       {/* Barre de recherche */}
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -340,6 +336,6 @@ export default function Courses() {
           </DialogActions>
         </form>
       </Dialog>
-    </Box>
+    </Box >
   )
 }

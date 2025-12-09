@@ -1,3 +1,4 @@
+
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -5,23 +6,15 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
-import { initializeDatabase } from './config/database.config';
 import { swaggerSpec } from './config/swagger.config';
 import authRoutes from './routes/auth.routes';
 import studentsRoutes from './routes/students.routes';
 import trainersRoutes from './routes/trainers.routes';
 import coursesRoutes from './routes/courses.routes';
-import sessionsRoutes from './routes/sessions.routes';
 import enrollmentsRoutes from './routes/enrollments.routes';
 import dashboardRoutes from './routes/dashboard.routes';
-import roomsRoutes from './routes/rooms.routes';
-import timeslotsRoutes from './routes/timeslots.routes';
-import registrationsRoutes from './routes/registrations.routes';
 import paymentsRoutes from './routes/payments.routes';
-import financeRoutes from './routes/finance.routes';
-import installmentsRoutes from './routes/installments.routes';
-import paymentSchedulesRoutes from './routes/payment-schedules.routes';
-import attendanceRoutes from './routes/attendance.routes';
+import scanRoutes from './routes/scan.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { translateQueryParams, translateRequestBody } from './middleware/translation.middleware';
 
@@ -77,17 +70,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/students', studentsRoutes);
 app.use('/api/trainers', trainersRoutes);
 app.use('/api/courses', coursesRoutes);
-app.use('/api/sessions', sessionsRoutes);
 app.use('/api/enrollments', enrollmentsRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/rooms', roomsRoutes);
-app.use('/api/time-slots', timeslotsRoutes);
-app.use('/api/registrations', registrationsRoutes);
 app.use('/api/payments', paymentsRoutes);
-app.use('/api/finance', financeRoutes);
-app.use('/api/payment-schedules', paymentSchedulesRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api', installmentsRoutes);
+app.use('/api/scan', scanRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
