@@ -12,12 +12,12 @@ async function createAdminUser() {
 
     // Check if admin already exists
     const existingAdmin = await userRepo.findOne({ 
-      where: { email: 'admin@ecole.dz' } 
+      where: { email: 'admin2@ecole.dz' } 
     });
 
     if (existingAdmin) {
       console.log('⚠️  Admin user already exists!');
-      console.log('📧 Email: admin@ecole.dz');
+      console.log('📧 Email: admin2@ecole.dz');
       process.exit(0);
     }
 
@@ -25,7 +25,9 @@ async function createAdminUser() {
     const hashedPassword = await bcrypt.hash('admin123', 10);
     
     const adminUser = userRepo.create({
-      email: 'admin@ecole.dz',
+      firstName: 'Admin',
+      lastName: 'User',
+      email: 'admin2@ecole.dz',
       password: hashedPassword,
       role: UserRole.ADMIN,
       isActive: true,
@@ -34,7 +36,7 @@ async function createAdminUser() {
     await userRepo.save(adminUser);
 
     console.log('✅ Admin user created successfully!');
-    console.log('📧 Email: admin@ecole.dz');
+    console.log('📧 Email: admin2@ecole.dz');
     console.log('🔑 Password: admin123');
     console.log('\n🚀 You can now login to the frontend!');
     

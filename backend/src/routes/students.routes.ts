@@ -88,6 +88,14 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
     // Generate real badge if not provided
     if (!qrCode) {
       await qrCodeService.generateStudentBadge(student.id);
+      // Reload student to get updated QR code data
+      const updatedStudent = await studentRepo.findOne({
+        where: { id: student.id }
+      });
+      if (updatedStudent) {
+        student.badgeQrCode = updatedStudent.badgeQrCode;
+        student.qrCode = updatedStudent.qrCode;
+      }
     }
 
     res.status(201).json({

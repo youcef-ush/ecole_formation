@@ -48,6 +48,7 @@ export class QrCodeService {
 
     // Mettre à jour l'étudiant avec le nouveau badge
     student.qrCode = qrData;
+    student.badgeQrCode = qrCodeDataUrl;
     await this.studentRepository.save(student);
 
     console.log(`✅ Badge QR généré pour l'étudiant ${student.firstName} ${student.lastName}`);

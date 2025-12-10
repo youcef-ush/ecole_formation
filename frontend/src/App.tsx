@@ -11,6 +11,7 @@ import Enrollments from './pages/Enrollments'
 import PrintReceipt from './pages/PrintReceipt'
 import QRScanner from './pages/QRScanner'
 import Payments from './pages/Payments'
+import PaymentPlans from './pages/PaymentPlans'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore()
@@ -37,6 +38,7 @@ function App() {
         <Route path="courses" element={<Courses />} />
         <Route path="enrollments" element={<Enrollments />} />
         <Route path="payments" element={<Payments />} />
+        <Route path="payment-plans" element={<PaymentPlans />} />
         <Route path="qr-scanner" element={<QRScanner />} />
       </Route>
     </Routes>

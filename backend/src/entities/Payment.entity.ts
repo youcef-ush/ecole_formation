@@ -3,6 +3,11 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDa
 import { Enrollment } from "./Enrollment.entity";
 import { Installment } from "./Installment.entity";
 
+export enum PaymentType {
+  INSTALLMENT = "INSTALLMENT",
+  REGISTRATION_FEE = "REGISTRATION_FEE"
+}
+
 @Entity("payments")
 export class Payment {
   @PrimaryGeneratedColumn()
@@ -33,4 +38,11 @@ export class Payment {
 
   @Column({ type: "text", nullable: true })
   note: string;
+
+  @Column({
+    type: "enum",
+    enum: PaymentType,
+    default: PaymentType.INSTALLMENT
+  })
+  type: PaymentType;
 }

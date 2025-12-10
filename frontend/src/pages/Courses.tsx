@@ -26,9 +26,9 @@ interface Course {
   id: number
   title: string
   description: string
-  category: string
-  duration: number
-  price: number
+  type: string
+  durationMonths: number
+  totalPrice: number
   isActive: boolean
 }
 
@@ -53,7 +53,7 @@ export default function Courses() {
     return (
       course.title?.toLowerCase().includes(query) ||
       course.description?.toLowerCase().includes(query) ||
-      course.category?.toLowerCase().includes(query)
+      course.type?.toLowerCase().includes(query)
     )
   }) || []
 
@@ -85,8 +85,9 @@ export default function Courses() {
     updateMutation.mutate({
       title: formData.get('title'),
       description: formData.get('description'),
-      price: parseFloat(formData.get('price') as string),
-      duration: parseInt(formData.get('duration') as string),
+      totalPrice: parseFloat(formData.get('totalPrice') as string),
+      durationMonths: parseInt(formData.get('durationMonths') as string),
+      type: formData.get('type'),
     })
   }
 
@@ -154,15 +155,15 @@ export default function Courses() {
                       size="small"
                     />
                   </Box>
-                  <Chip label={course.category} size="small" sx={{ mb: 2 }} />
+                  <Chip label={course.type} size="small" sx={{ mb: 2 }} />
                   <Typography variant="body2" color="text.secondary" paragraph>
                     {course.description}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Durée: {course.duration} heures
+                    Durée: {course.durationMonths} mois
                   </Typography>
                   <Typography variant="h6" color="primary" fontWeight={600} mt={1}>
-                    {course.price.toLocaleString()} DA
+                    {course.totalPrice?.toLocaleString()} DA
                   </Typography>
                 </CardContent>
                 <CardActions>
@@ -197,7 +198,7 @@ export default function Courses() {
                     {selectedCourse.title}
                   </Typography>
                   <Box display="flex" gap={1}>
-                    <Chip label={selectedCourse.category} color="primary" size="small" />
+                    <Chip label={selectedCourse.type} color="primary" size="small" />
                     <Chip
                       label={selectedCourse.isActive ? 'Actif' : 'Inactif'}
                       color={selectedCourse.isActive ? 'success' : 'default'}
@@ -218,9 +219,9 @@ export default function Courses() {
 
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">
-                  Catégorie
+                  Type
                 </Typography>
-                <Typography variant="body1">{selectedCourse.category}</Typography>
+                <Typography variant="body1">{selectedCourse.type}</Typography>
               </Grid>
 
               <Grid item xs={6}>
@@ -228,16 +229,16 @@ export default function Courses() {
                   Durée
                 </Typography>
                 <Typography variant="body1" fontWeight={600}>
-                  {selectedCourse.duration} heures
+                  {selectedCourse.durationMonths} mois
                 </Typography>
               </Grid>
 
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">
-                  Prix
+                  Prix Total
                 </Typography>
                 <Typography variant="h6" color="success.main" fontWeight={600}>
-                  {selectedCourse.price.toLocaleString()} DA
+                  {selectedCourse.totalPrice?.toLocaleString()} DA
                 </Typography>
               </Grid>
 
@@ -295,9 +296,9 @@ export default function Courses() {
                   <TextField
                     fullWidth
                     type="number"
-                    label="Durée (heures)"
-                    name="duration"
-                    defaultValue={selectedCourse.duration}
+                    label="Durée (mois)"
+                    name="durationMonths"
+                    defaultValue={selectedCourse.durationMonths}
                     required
                   />
                 </Grid>
@@ -306,9 +307,9 @@ export default function Courses() {
                   <TextField
                     fullWidth
                     type="number"
-                    label="Prix (DA)"
-                    name="price"
-                    defaultValue={selectedCourse.price}
+                    label="Prix Total (DA)"
+                    name="totalPrice"
+                    defaultValue={selectedCourse.totalPrice}
                     required
                   />
                 </Grid>
@@ -316,9 +317,9 @@ export default function Courses() {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Catégorie"
-                    name="category"
-                    defaultValue={selectedCourse.category}
+                    label="Type"
+                    name="type"
+                    defaultValue={selectedCourse.type}
                     disabled
                     helperText="La catégorie ne peut pas être modifiée"
                   />

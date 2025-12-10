@@ -31,14 +31,10 @@ interface Student {
   id: number;
   firstName: string;
   lastName: string;
-  dateOfBirth: string;
+  birthDate: string;
   phone: string;
   address: string;
-  parentName: string;
-  parentPhone: string;
-  user: {
-    email: string;
-  };
+  email: string;
   qrCode: string;
   badgeQrCode?: string; // QR code image depuis backend
   badgeExpiry?: string; // Date d'expiration
@@ -153,7 +149,7 @@ export default function StudentDetail() {
                 {student.firstName} {student.lastName}
               </Typography>
               <Typography color="text.secondary" gutterBottom>
-                {student.user.email}
+                {student.email}
               </Typography>
             </Box>
 
@@ -164,7 +160,7 @@ export default function StudentDetail() {
                 Date de naissance
               </Typography>
               <Typography variant="body1">
-                {new Date(student.dateOfBirth).toLocaleDateString('fr-FR')}
+                {new Date(student.birthDate).toLocaleDateString('fr-FR')}
               </Typography>
             </Box>
 
@@ -180,22 +176,6 @@ export default function StudentDetail() {
                 Adresse
               </Typography>
               <Typography variant="body1">{student.address}</Typography>
-            </Box>
-
-            <Divider sx={{ my: 2 }} />
-
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle2" color="text.secondary">
-                Parent/Tuteur
-              </Typography>
-              <Typography variant="body1">{student.parentName}</Typography>
-            </Box>
-
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle2" color="text.secondary">
-                Téléphone parent
-              </Typography>
-              <Typography variant="body1">{student.parentPhone}</Typography>
             </Box>
 
             <Divider sx={{ my: 2 }} />
@@ -429,7 +409,7 @@ function BadgeCard({
               {student.firstName} {student.lastName}
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem' }}>
-              Né(e) : {new Date(student.dateOfBirth).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+              Né(e) : {new Date(student.birthDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
               ID: {student.id}

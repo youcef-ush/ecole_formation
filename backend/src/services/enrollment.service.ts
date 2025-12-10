@@ -3,6 +3,7 @@ import { AppDataSource } from "../config/database.config"; // Assuming server.ts
 import { Enrollment, EnrollmentStatus } from "../entities/Enrollment.entity";
 import { Student } from "../entities/Student.entity";
 import { Course, PriceModel } from "../entities/Course.entity";
+import { Payment, PaymentType } from "../entities/Payment.entity";
 import { PaymentPlan } from "../entities/PaymentPlan.entity";
 import { Installment } from "../entities/Installment.entity";
 
@@ -16,8 +17,9 @@ export class EnrollmentService {
     async createEnrollment(
         studentId: number,
         courseId: number,
-        paymentPlanId: number,
-        startDate: Date = new Date()
+        paymentPlanId: number | null,
+        startDate: Date = new Date(),
+        registrationFee: number = 0 // New parameter
     ) {
         // 1. Validate Entities
         const student = await this.studentRepo.findOneBy({ id: studentId });
@@ -26,30 +28,56 @@ export class EnrollmentService {
         const course = await this.courseRepo.findOneBy({ id: courseId });
         if (!course) throw new Error("Course not found");
 
-        const plan = await this.planRepo.findOneBy({ id: paymentPlanId });
-        if (!plan) throw new Error("Payment plan not found");
+        let plan: PaymentPlan | null = null;
+        if (paymentPlanId) {
+            plan = await this.planRepo.findOneBy({ id: paymentPlanId });
+            if (!plan) throw new Error("Payment plan not found");
+        }
 
         // 2. Create Enrollment
         const enrollment = new Enrollment();
         enrollment.student = student;
         enrollment.course = course;
-        enrollment.paymentPlan = plan;
+        if (plan) {
+            enrollment.paymentPlan = plan;
+        }
         enrollment.startDate = this.formatDate(startDate);
         enrollment.status = EnrollmentStatus.ACTIVE;
 
         // Logic for Packs: Initialize remaining usage
         if (course.type === "PACK_HEURES") {
-            // Assuming a standard pack size or we could add 'pack_size' to course. 
-            // For now, let's assume the course title might contain info or we default to 10 for packs if not specified.
-            // Better: Add 'default_usage_limit' to Course entity. For this MVP, let's hardcode or derive.
-            enrollment.remainingUsage = 10; // Default placeholder, or 0 if not needed
+            enrollment.remainingUsage = 10; // Default placeholder
         }
 
         // Save enrollment first to get ID
         const savedEnrollment = await this.enrollmentRepo.save(enrollment);
 
-        // 3. Generate Installments (The Financial Contract)
-        await this.generateInstallments(savedEnrollment, course, plan);
+        // 3. Handle Registration Fee logic
+        // Only process fee if student is NOT yet validated (isRegistrationFeePaid = false)
+        if (!student.isRegistrationFeePaid) {
+            student.isRegistrationFeePaid = true;
+            await this.studentRepo.save(student);
+
+            if (registrationFee > 0) {
+                const payment = new Payment();
+                payment.enrollment = savedEnrollment;
+                payment.amount = registrationFee;
+                payment.paymentDate = new Date();
+                payment.method = "CASH"; // Default
+                payment.type = PaymentType.REGISTRATION_FEE;
+                payment.note = "Frais d'inscription (Validation)";
+
+                // Need to import PaymentRepo or use manager
+                // Since I didn't inject paymentRepo, let's use AppDataSource
+                const paymentRepo = AppDataSource.getRepository(Payment);
+                await paymentRepo.save(payment);
+            }
+        }
+
+        // 4. Generate Installments only if payment plan exists
+        if (plan) {
+            await this.generateInstallments(savedEnrollment, course, plan);
+        }
 
         return savedEnrollment;
     }
@@ -131,6 +159,36 @@ export class EnrollmentService {
             relations: ["course", "paymentPlan", "installments", "payments"],
             order: { startDate: "DESC" }
         });
+    }
+
+    async getAllEnrollments() {
+        return this.enrollmentRepo.find({
+            relations: ["student", "course", "paymentPlan", "installments"],
+            order: { startDate: "DESC" }
+        });
+    }
+
+    async createStudent(studentData: {
+        firstName: string;
+        lastName: string;
+        phone: string;
+        email: string;
+        birthDate: string;
+        address: string;
+    }): Promise<Student> {
+        const student = this.studentRepo.create({
+            ...studentData,
+            qrCode: `temp_${Date.now()}`, // Temporary QR code
+        });
+        return this.studentRepo.save(student);
+    }
+
+    async updateEnrollmentStatus(enrollmentId: number, status: string) {
+        const enrollment = await this.enrollmentRepo.findOneBy({ id: enrollmentId });
+        if (!enrollment) throw new Error("Enrollment not found");
+
+        enrollment.status = status as EnrollmentStatus;
+        return this.enrollmentRepo.save(enrollment);
     }
 }
 

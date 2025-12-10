@@ -16,6 +16,7 @@ import BookIcon from '@mui/icons-material/Book'
 import AppRegistrationIcon from '@mui/icons-material/AppRegistration'
 import PaymentIcon from '@mui/icons-material/Payment'
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 interface SidebarProps {
@@ -29,6 +30,7 @@ const menuItems = [
   { text: 'Scanner Accès', icon: <QrCodeScannerIcon />, path: '/qr-scanner' },
   { text: 'Inscriptions', icon: <AppRegistrationIcon />, path: '/enrollments' },
   { text: 'Paiements', icon: <PaymentIcon />, path: '/payments' },
+  { text: 'Plans de Paiement', icon: <AccountBalanceIcon />, path: '/payment-plans' },
   { text: 'Étudiants', icon: <SchoolIcon />, path: '/students' },
   { text: 'Formateurs', icon: <PersonIcon />, path: '/trainers' },
   { text: 'Formations', icon: <BookIcon />, path: '/courses' },

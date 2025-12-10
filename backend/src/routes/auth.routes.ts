@@ -56,7 +56,11 @@ router.post('/login', async (req: Request, res: Response, next) => {
     }
 
     const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOne({ where: { email } });
+    const user = await userRepo
+      .createQueryBuilder("user")
+      .addSelect("user.password")
+      .where("user.email = :email", { email })
+      .getOne();
 
     if (!user) {
       throw new AppError('Identifiants invalides', 401);

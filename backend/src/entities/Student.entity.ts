@@ -26,6 +26,12 @@ export class Student {
   @Column({ name: "qr_code", unique: true })
   qrCode: string;
 
+  @Column({ name: "is_registration_fee_paid", default: false })
+  isRegistrationFeePaid: boolean;
+
+  @Column({ name: "badge_qr_code", type: "text", nullable: true })
+  badgeQrCode?: string;
+
   @Column({ type: "text", nullable: true })
   address: string;
 

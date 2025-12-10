@@ -26,7 +26,7 @@ router.use(authorize(UserRole.ADMIN));
 router.get('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const trainerRepo = AppDataSource.getRepository(Trainer);
-    const trainers = await trainerRepo.find({ relations: ['user'] });
+    const trainers = await trainerRepo.find();
 
     res.json({ success: true, data: trainers });
   } catch (error) {
@@ -61,7 +61,7 @@ router.get('/:id', async (req: AuthRequest, res: Response, next) => {
     const trainerRepo = AppDataSource.getRepository(Trainer);
     const trainer = await trainerRepo.findOne({
       where: { id: parseInt(req.params.id) },
-      relations: ['user', 'sessions', 'sessions.course'],
+      relations: ['courses'],
     });
 
     res.json({ success: true, data: trainer });

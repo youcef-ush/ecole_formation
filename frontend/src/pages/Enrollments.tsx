@@ -7,10 +7,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Alert,
   Table,
   TableBody,
@@ -23,14 +19,18 @@ import {
   IconButton,
   TextField,
   Autocomplete,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import { Add, Visibility } from '@mui/icons-material';
 import api from '../services/api';
+import ReceiptModal from '../components/ReceiptModal';
 
 interface Student {
   id: number;
   firstName: string;
   lastName: string;
+  isRegistrationFeePaid: boolean;
 }
 
 interface Course {
@@ -38,13 +38,6 @@ interface Course {
   title: string;
   totalPrice: number;
   type: string;
-}
-
-interface PaymentPlan {
-  id: number;
-  name: string;
-  installmentsCount: number;
-  intervalDays: number;
 }
 
 interface Enrollment {
@@ -69,7 +62,6 @@ export default function Enrollments() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [paymentPlans, setPaymentPlans] = useState<PaymentPlan[]>([]);
   const [, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -78,7 +70,17 @@ export default function Enrollments() {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<number | ''>('');
+
+  // New student fields
+  const [isNewStudent, setIsNewStudent] = useState(false);
+  const [newStudentFirstName, setNewStudentFirstName] = useState('');
+  const [newStudentLastName, setNewStudentLastName] = useState('');
+  const [newStudentPhone, setNewStudentPhone] = useState('');
+  const [newStudentEmail, setNewStudentEmail] = useState('');
+
+  // Registration Fee state
+  const [registrationFee, setRegistrationFee] = useState<string>('0');
+  const [receiptData, setReceiptData] = useState<any>(null);
 
   // View installments dialog
   const [viewEnrollment, setViewEnrollment] = useState<Enrollment | null>(null);
@@ -90,22 +92,16 @@ export default function Enrollments() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [studentsRes, coursesRes, plansRes] = await Promise.all([
+      const [studentsRes, coursesRes, enrollmentsRes] = await Promise.all([
         api.get('/students'),
         api.get('/courses'),
-        api.get('/payment-plans').catch(() => ({ data: { data: [] } })), // Fallback if endpoint doesn't exist yet
+        api.get('/enrollments'),
       ]);
 
       setStudents(studentsRes.data.data || []);
       setCourses(coursesRes.data.data || []);
-      setPaymentPlans(plansRes.data?.data || [
-        { id: 1, name: 'Paiement Unique', installmentsCount: 1, intervalDays: 0 },
-        { id: 2, name: 'Mensuel', installmentsCount: 3, intervalDays: 30 },
-        { id: 3, name: '3 Tranches', installmentsCount: 3, intervalDays: 30 },
-      ]);
 
-      // Load enrollments (we don't have a list endpoint yet, so we'll skip for now)
-      setEnrollments([]);
+      setEnrollments(enrollmentsRes.data || []);
     } catch (err) {
       setError('Erreur lors du chargement des données');
     } finally {
@@ -114,27 +110,60 @@ export default function Enrollments() {
   };
 
   const handleCreate = async () => {
-    if (!selectedStudent || !selectedCourse || !selectedPlan) {
-      setError('Veuillez remplir tous les champs');
+    if (!selectedCourse) {
+      setError('Veuillez sélectionner une formation');
+      return;
+    }
+
+    if (!isNewStudent && !selectedStudent) {
+      setError('Veuillez sélectionner un étudiant ou créer un nouveau');
+      return;
+    }
+
+    if (isNewStudent && (!newStudentFirstName || !newStudentLastName || !newStudentPhone)) {
+      setError('Veuillez remplir nom, prénom et téléphone pour le nouvel étudiant');
       return;
     }
 
     try {
-      const response = await api.post('/enrollments', {
-        studentId: selectedStudent.id,
+      const feeAmount = parseInt(registrationFee || '0', 10);
+      const payload: any = {
         courseId: selectedCourse.id,
-        paymentPlanId: selectedPlan,
-      });
+        registrationFee: feeAmount,
+      };
+
+      if (isNewStudent) {
+        payload.studentData = {
+          firstName: newStudentFirstName,
+          lastName: newStudentLastName,
+          phone: newStudentPhone,
+          email: newStudentEmail,
+        };
+      } else {
+        payload.studentId = selectedStudent!.id;
+      }
+
+      const response = await api.post('/enrollments', payload);
 
       const newEnrollment = response.data;
       setEnrollments([newEnrollment, ...enrollments]);
       setSuccess('Inscription créée avec succès!');
-      handleCloseDialog();
 
-      // Show installments dialog
-      setTimeout(() => {
-        setViewEnrollment(newEnrollment);
-      }, 500);
+      // If fee was paid, show receipt
+      if (feeAmount > 0 && (!selectedStudent?.isRegistrationFeePaid || isNewStudent)) {
+        console.log("Setting receipt data triggered");
+        setReceiptData({
+          studentName: isNewStudent ? `${newStudentFirstName} ${newStudentLastName}` : `${selectedStudent!.firstName} ${selectedStudent!.lastName}`,
+          courseTitle: selectedCourse.title,
+          amount: feeAmount,
+          date: new Date().toLocaleDateString(),
+          type: "Frais d'inscription"
+        });
+      }
+
+      handleCloseDialog();
+      // Reload students to update their status (isRegistrationFeePaid)
+      loadData();
 
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erreur lors de la création');
@@ -145,7 +174,23 @@ export default function Enrollments() {
     setOpenDialog(false);
     setSelectedStudent(null);
     setSelectedCourse(null);
-    setSelectedPlan('');
+    setIsNewStudent(false);
+    setNewStudentFirstName('');
+    setNewStudentLastName('');
+    setNewStudentPhone('');
+    setNewStudentEmail('');
+    setRegistrationFee('0');
+  };
+
+  const handleValidate = async (enrollmentId: number) => {
+    try {
+      await api.put(`/enrollments/${enrollmentId}/status`, { status: 'COMPLETED' });
+      setSuccess('Inscription validée avec succès!');
+      // Reload data
+      loadData();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erreur lors de la validation');
+    }
   };
 
   return (
@@ -193,8 +238,8 @@ export default function Enrollments() {
                   <TableCell>{enrollment.startDate}</TableCell>
                   <TableCell>
                     <Chip
-                      label={enrollment.status}
-                      color={enrollment.status === 'ACTIVE' ? 'success' : 'default'}
+                      label={enrollment.status === 'COMPLETED' ? 'Validé' : enrollment.status === 'ACTIVE' ? 'Actif' : enrollment.status}
+                      color={enrollment.status === 'COMPLETED' ? 'success' : enrollment.status === 'ACTIVE' ? 'primary' : 'default'}
                       size="small"
                     />
                   </TableCell>
@@ -202,6 +247,17 @@ export default function Enrollments() {
                     <IconButton onClick={() => setViewEnrollment(enrollment)}>
                       <Visibility />
                     </IconButton>
+                    {enrollment.status === 'ACTIVE' && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="success"
+                        onClick={() => handleValidate(enrollment.id)}
+                        sx={{ ml: 1 }}
+                      >
+                        Valider
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -215,36 +271,78 @@ export default function Enrollments() {
         <DialogTitle>Nouvelle Inscription</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <Autocomplete
-              options={students}
-              getOptionLabel={(option) => `${option.firstName} ${option.lastName}`}
-              value={selectedStudent}
-              onChange={(_, value) => setSelectedStudent(value)}
-              renderInput={(params) => <TextField {...params} label="Étudiant" />}
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={isNewStudent}
+                  onChange={(e) => setIsNewStudent(e.target.checked)}
+                />
+              }
+              label="Nouveau étudiant"
             />
+
+            {isNewStudent ? (
+              <>
+                <TextField
+                  fullWidth
+                  label="Prénom"
+                  value={newStudentFirstName}
+                  onChange={(e) => setNewStudentFirstName(e.target.value)}
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="Nom"
+                  value={newStudentLastName}
+                  onChange={(e) => setNewStudentLastName(e.target.value)}
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="Téléphone"
+                  value={newStudentPhone}
+                  onChange={(e) => setNewStudentPhone(e.target.value)}
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="Email (optionnel)"
+                  type="email"
+                  value={newStudentEmail}
+                  onChange={(e) => setNewStudentEmail(e.target.value)}
+                />
+              </>
+            ) : (
+              <Autocomplete
+                options={students}
+                getOptionLabel={(option) => `${option.firstName} ${option.lastName}`}
+                value={selectedStudent}
+                onChange={(_, value) => setSelectedStudent(value)}
+                renderInput={(params) => <TextField {...params} label="Étudiant" required />}
+              />
+            )}
+
+            {/* Logic for Registration Fee */}
+            {(isNewStudent || (selectedStudent && !selectedStudent.isRegistrationFeePaid)) ? (
+              <TextField
+                fullWidth
+                label="Frais d'inscription (Premier paiement)"
+                type="number"
+                value={registrationFee}
+                onChange={(e) => setRegistrationFee(e.target.value)}
+                helperText="Ce paiement valide le statut de l'étudiant."
+              />
+            ) : selectedStudent && selectedStudent.isRegistrationFeePaid ? (
+              <Alert severity="info">Frais d'inscription déjà réglés pour cet étudiant.</Alert>
+            ) : null}
 
             <Autocomplete
               options={courses}
               getOptionLabel={(option) => `${option.title} - ${option.totalPrice} DA`}
               value={selectedCourse}
               onChange={(_, value) => setSelectedCourse(value)}
-              renderInput={(params) => <TextField {...params} label="Formation" />}
+              renderInput={(params) => <TextField {...params} label="Formation" required />}
             />
-
-            <FormControl fullWidth>
-              <InputLabel>Plan de Paiement</InputLabel>
-              <Select
-                value={selectedPlan}
-                label="Plan de Paiement"
-                onChange={(e) => setSelectedPlan(Number(e.target.value))}
-              >
-                {paymentPlans.map((plan) => (
-                  <MenuItem key={plan.id} value={plan.id}>
-                    {plan.name} ({plan.installmentsCount} échéance{plan.installmentsCount > 1 ? 's' : ''})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>
@@ -290,6 +388,12 @@ export default function Enrollments() {
           <Button onClick={() => setViewEnrollment(null)}>Fermer</Button>
         </DialogActions>
       </Dialog>
+
+      <ReceiptModal
+        open={!!receiptData}
+        onClose={() => setReceiptData(null)}
+        data={receiptData}
+      />
     </Box>
   );
 }
