@@ -10,7 +10,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD || 'eftg',
   database: process.env.DB_DATABASE || 'ecole_formation',
-  synchronize: true, // Enabled for dev updates
+  synchronize: false, // Disabled to prevent crash on startup
   logging: process.env.NODE_ENV === 'development',
   entities: ['src/entities/**/*.entity.ts'],
   migrations: ['src/migrations/**/*.ts'],

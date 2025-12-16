@@ -100,7 +100,7 @@ export default function Students() {
       student.email?.toLowerCase().includes(query) ||
       student.phone?.toLowerCase().includes(query)
     )
-  }) || []
+  })?.filter(s => s['is_registration_fee_paid'] || s['isRegistrationFeePaid'] || false) || []
 
   // Fonction pour obtenir la formation de l'étudiant
   const getStudentCourse = (student: Student): string => {

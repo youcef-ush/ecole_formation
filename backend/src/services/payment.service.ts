@@ -3,6 +3,7 @@ import { AppDataSource } from "../config/database.config";
 import { Payment } from "../entities/Payment.entity";
 import { Installment } from "../entities/Installment.entity";
 import { Enrollment } from "../entities/Enrollment.entity";
+import { Student } from "../entities/Student.entity";
 
 export class PaymentService {
     private paymentRepo = AppDataSource.getRepository(Payment);
@@ -68,6 +69,20 @@ export class PaymentService {
             }
         }
 
+        // If this payment was intended as registration validation, mark the student's fee status.
+        // Heuristic: when there are no installments or the enrollment had a pending status, we mark registration fee paid.
+        try {
+            const student = (enrollment as any).student as Student | undefined;
+            if (student && !student.isRegistrationFeePaid) {
+                student.isRegistrationFeePaid = true;
+                await AppDataSource.getRepository(Student).save(student);
+            }
+        } catch (err) {
+            // Non-fatal: keep payment processing successful even if marking the student fails
+            console.warn('Warning: failed to mark student registration fee status', err);
+        }
+
         return { payment: savedPayment, remainingCredit: remainingPayment };
     }
 }
+

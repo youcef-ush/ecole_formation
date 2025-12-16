@@ -7,7 +7,7 @@ export class EnrollmentController {
 
     create = async (req: Request, res: Response) => {
         try {
-            const { studentId, courseId, paymentPlanId, startDate, studentData } = req.body;
+            const { studentId, courseId, courseIds, paymentPlanId, startDate, studentData } = req.body;
 
             let finalStudentId = studentId;
 
@@ -28,20 +28,28 @@ export class EnrollmentController {
                 finalStudentId = newStudent.id;
             }
 
-            if (!finalStudentId || !courseId) {
-                return res.status(400).json({ message: "Student and Course IDs are required" });
+            // Support both single courseId (legacy) and courseIds array
+            const coursesToEnroll = courseIds || (courseId ? [courseId] : []);
+
+            if (!finalStudentId || coursesToEnroll.length === 0) {
+                return res.status(400).json({ message: "Student and at least one Course ID are required" });
             }
 
-            const enrollment = await this.enrollmentService.createEnrollment(
+            const enrollments = await this.enrollmentService.createEnrollments(
                 Number(finalStudentId),
-                Number(courseId),
+                coursesToEnroll.map((id: any) => Number(id)),
                 paymentPlanId ? Number(paymentPlanId) : null,
                 startDate ? new Date(startDate) : new Date(),
                 req.body.registrationFee ? Number(req.body.registrationFee) : 0
             );
 
-            return res.status(201).json(enrollment);
+            return res.status(201).json(enrollments);
+
+
         } catch (error: any) {
+            if (error && error.message && error.message.includes('already enrolled')) {
+                return res.status(400).json({ message: error.message });
+            }
             return res.status(500).json({ message: error.message });
         }
     };

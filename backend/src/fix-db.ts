@@ -22,11 +22,12 @@ const fixDatabase = async () => {
         await FixDataSource.initialize();
         console.log('✅ Connected to database (Sync Disabled)');
 
-        console.log('🔧 Fixing NULL values in users table...');
+        const countBefore = await FixDataSource.query("SELECT count(*) FROM users WHERE first_name IS NULL");
+        console.log(`VALUES BEFORE: ${JSON.stringify(countBefore)}`);
 
         await FixDataSource.query(`
       UPDATE users 
-      SET first_name = 'Admin' 
+      SET first_name = 'Admin' || id
       WHERE first_name IS NULL
     `);
 
@@ -35,6 +36,40 @@ const fixDatabase = async () => {
       SET last_name = 'User' 
       WHERE last_name IS NULL
     `);
+
+        // Fix Email
+        await FixDataSource.query(`
+      UPDATE users 
+      SET email = 'user' || id || '@example.com' 
+      WHERE email IS NULL
+    `);
+
+        // Fix Password (dummy hash)
+        await FixDataSource.query(`
+      UPDATE users 
+      SET password = '$2b$10$abcdefg...' 
+      WHERE password IS NULL
+    `);
+
+        // MANUAL SCHEMA UPDATES (Bypassing Auto-Sync)
+        console.log('🔧 Applying Manual Schema Updates...');
+
+        // Add is_registration_fee_paid to students
+        await FixDataSource.query(`
+      ALTER TABLE students 
+      ADD COLUMN IF NOT EXISTS is_registration_fee_paid BOOLEAN DEFAULT false
+    `);
+
+        // Add type to payments
+        await FixDataSource.query(`
+      ALTER TABLE payments 
+      ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'INSTALLMENT'
+    `);
+
+        console.log('✅ Manual Schema Updates Applied');
+
+        const countAfter = await FixDataSource.query("SELECT count(*) FROM users WHERE first_name IS NULL");
+        console.log(`VALUES AFTER: ${JSON.stringify(countAfter)}`);
 
         console.log('✅ Database fixed successfully');
         await FixDataSource.destroy();

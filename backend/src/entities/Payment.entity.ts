@@ -13,12 +13,12 @@ export class Payment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: "enrollment_id" })
-  enrollmentId: number;
+  @Column({ name: "enrollment_id", nullable: true })
+  enrollmentId: number | null;
 
-  @ManyToOne(() => Enrollment, (enrollment) => enrollment.payments, { onDelete: "CASCADE" })
+  @ManyToOne(() => Enrollment, (enrollment) => enrollment.payments, { onDelete: "CASCADE", nullable: true })
   @JoinColumn({ name: "enrollment_id" })
-  enrollment: Enrollment;
+  enrollment: Enrollment | null;
 
   @Column({ name: "installment_id", nullable: true })
   installmentId: number;

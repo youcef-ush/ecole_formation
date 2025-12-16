@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Box, CircularProgress, Button } from '@mui/material'
@@ -34,16 +34,50 @@ export default function PrintReceipt() {
     enabled: !!type && !!id,
   })
 
+  const receiptRef = useRef<HTMLDivElement | null>(null)
+
+  const mmToPx = (mm: number) => (mm * 96) / 25.4
+  const pageHeightMm = 297
+  const marginMm = 8 // doit correspondre à la CSS @page
+
   const handlePrint = () => {
+    const el = receiptRef.current
+    if (el) {
+      // log measurements to debug
+      const printableHeightPx = Math.floor(mmToPx(pageHeightMm - 2 * marginMm))
+      // hauteur non-scalée
+      const contentHeight = el.scrollHeight
+      // log pour diagnostic
+      // eslint-disable-next-line no-console
+      console.debug('print: contentHeight, printableHeightPx', { contentHeight, printableHeightPx })
+    }
+
     window.print()
   }
 
   useEffect(() => {
-    // Auto-print après 1 seconde si les données sont chargées
+    // Auto-print après 600ms si les données sont chargées (donner le temps au DOM/webpack)
     if (receiptData) {
       const timer = setTimeout(() => {
+        // avant d'appeler print, on peut faire un petit ajustement si le reçu dépasse
+        const el = receiptRef.current
+        if (el) {
+          const printableHeightPx = Math.floor(mmToPx(pageHeightMm - 2 * marginMm))
+          const contentHeight = el.scrollHeight
+          // Si le reçu dépasse légèrement, réduire la taille via transform légèrement
+          if (contentHeight > printableHeightPx) {
+            // appliquer une petite réduction en boucle jusqu'à ce que ça rentre ou qu'on atteigne 85%
+            let scale = Math.min(1, printableHeightPx / contentHeight)
+            scale = Math.max(0.85, scale * 0.99)
+            el.style.transformOrigin = 'top left'
+            el.style.transform = `scale(${scale})`
+            // log
+            // eslint-disable-next-line no-console
+            console.debug('applied scale before print', { scale, contentHeight, printableHeightPx })
+          }
+        }
         window.print()
-      }, 1000)
+      }, 600)
       return () => clearTimeout(timer)
     }
   }, [receiptData])
@@ -103,29 +137,74 @@ export default function PrintReceipt() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'grey.100', py: 4 }}>
-      {/* Bouton d'impression (caché à l'impression) */}
-      <Box 
-        sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          mb: 3,
-          '@media print': {
-            display: 'none',
+    <>
+      {/* Styles d'impression locaux pour forcer une seule page */}
+      <style>{`
+        @page { size: A4; margin: 8mm }
+        @media print {
+          html, body { 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            height: auto !important;
+            overflow: visible !important;
           }
-        }}
-      >
-        <Button
-          variant="contained"
-          startIcon={<PrintIcon />}
-          onClick={handlePrint}
-          size="large"
+          
+          /* Cacher tout le wrapper de la page sauf le receipt */
+          .page-wrapper {
+            display: none !important;
+          }
+
+          /* Le receipt est le seul élément visible */
+          .receipt-only {
+            display: block !important;
+            position: relative !important;
+            width: 100% !important;
+            max-width: 210mm !important;
+            margin: 0 auto !important;
+            padding: 4mm !important;
+            box-sizing: border-box !important;
+            background: #fff !important;
+            page-break-inside: avoid !important;
+            -webkit-print-color-adjust: exact !important;
+            font-size: 11px !important;
+          }
+        }
+
+        @media screen {
+          .receipt-only {
+            max-width: 210mm;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          }
+        }
+      `}</style>
+
+      {/* Wrapper pour tout sauf le receipt - caché en print */}
+      <Box className="page-wrapper" sx={{ minHeight: '100vh', bgcolor: 'grey.100', py: 4 }}>
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            mb: 3,
+          }}
         >
-          Imprimer le reçu
-        </Button>
+          <Button
+            variant="contained"
+            startIcon={<PrintIcon />}
+            onClick={handlePrint}
+            size="large"
+          >
+            Imprimer le reçu
+          </Button>
+        </Box>
       </Box>
 
-      <PaymentReceipt {...receiptProps} />
-    </Box>
+      {/* Receipt - toujours visible, mais mis en forme différemment selon print/screen */}
+      <div ref={receiptRef} className="receipt-only">
+        <PaymentReceipt {...receiptProps} />
+      </div>
+    </>
   )
 }
