@@ -15,7 +15,7 @@ import enrollmentsRoutes from './routes/enrollments.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import paymentsRoutes from './routes/payments.routes';
 import scanRoutes from './routes/scan.routes';
-import paymentPlansRoutes from './routes/payment-plans.routes';
+// import paymentPlansRoutes from './routes/payment-plans.routes'; // TODO: Recreate controller
 import { errorHandler } from './middleware/error.middleware';
 import { translateQueryParams, translateRequestBody } from './middleware/translation.middleware';
 
@@ -51,6 +51,9 @@ if (process.env.NODE_ENV === 'development') {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files (uploads)
+app.use('/uploads', express.static('uploads'));
+
 // Translation middleware (French <-> English enum conversion)
 app.use('/api', translateQueryParams);
 app.use('/api', translateRequestBody);
@@ -74,7 +77,7 @@ app.use('/api/courses', coursesRoutes);
 app.use('/api/enrollments', enrollmentsRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/scan', scanRoutes);
-app.use('/api/payment-plans', paymentPlansRoutes);
+// app.use('/api/payment-plans', paymentPlansRoutes); // TODO: Recreate
 app.use('/api/dashboard', dashboardRoutes);
 
 // 404 handler

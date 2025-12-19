@@ -1,31 +1,39 @@
-
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
-import { Enrollment } from "./Enrollment.entity";
+import { PaymentPlan } from "./PaymentPlan.entity";
+
+export enum InstallmentStatus {
+  PENDING = "PENDING",
+  PAID = "PAID",
+  OVERDUE = "OVERDUE"
+}
 
 @Entity("installments")
 export class Installment {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column({ name: "enrollment_id" })
-    enrollmentId: number;
+  @Column({ name: "payment_plan_id" })
+  paymentPlanId: number;
 
-    @ManyToOne(() => Enrollment, (enrollment) => enrollment.installments, { onDelete: "CASCADE" })
-    @JoinColumn({ name: "enrollment_id" })
-    enrollment: Enrollment;
+  @ManyToOne(() => PaymentPlan, (plan) => plan.installments, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "payment_plan_id" })
+  paymentPlan: PaymentPlan;
 
-    @Column({ type: "date", name: "due_date" })
-    dueDate: string;
+  @Column({ name: "installment_number" })
+  installmentNumber: number;
 
-    @Column("decimal", { precision: 10, scale: 2 })
-    amount: number;
+  @Column({ type: "decimal", precision: 10, scale: 2 })
+  amount: number;
 
-    @Column({ name: "is_paid", default: false })
-    isPaid: boolean;
+  @Column({ type: "date", name: "due_date" })
+  dueDate: string;
 
-    @Column({ name: "paid_at", type: "timestamp", nullable: true })
-    paidAt: Date;
+  @Column({ type: "timestamp", name: "paid_date", nullable: true })
+  paidDate: Date;
 
-    @CreateDateColumn({ name: "created_at" })
-    createdAt: Date;
+  @Column({ type: "enum", enum: InstallmentStatus, default: InstallmentStatus.PENDING })
+  status: InstallmentStatus;
+
+  @CreateDateColumn({ name: "created_at" })
+  createdAt: Date;
 }

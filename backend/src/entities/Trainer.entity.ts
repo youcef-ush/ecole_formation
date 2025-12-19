@@ -1,4 +1,3 @@
-
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn } from "typeorm";
 import { Course } from "./Course.entity";
 
@@ -14,10 +13,15 @@ export class Trainer {
   lastName: string;
 
   @Column({ nullable: true })
+  specialty: string;
+
+  @Column({ nullable: true })
   phone: string;
 
   @Column({ nullable: true })
-  specialty: string;
+  email: string;
+  @Column({ name: "cv", type: "text", nullable: true })
+  cv: string;
 
   @CreateDateColumn({ name: "created_at" })
   createdAt: Date;

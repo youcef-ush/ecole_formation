@@ -1,61 +1,45 @@
-
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany, CreateDateColumn } from "typeorm";
-import { Student } from "./Student.entity";
-import { Course } from "./Course.entity";
-import { PaymentPlan } from "./PaymentPlan.entity";
-import { Installment } from "./Installment.entity";
-import { Payment } from "./Payment.entity";
-
-export enum EnrollmentStatus {
-  ACTIVE = "ACTIVE",
-  COMPLETED = "COMPLETED",
-  CANCELLED = "CANCELLED"
-}
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeorm";
 
 @Entity("enrollments")
 export class Enrollment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: "student_id" })
-  studentId: number;
+  @Column({ name: "first_name" })
+  firstName: string;
 
-  @ManyToOne(() => Student, (student) => student.enrollments, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "student_id" })
-  student: Student;
+  @Column({ name: "last_name" })
+  lastName: string;
 
-  @Column({ name: "course_id" })
+  @Column({ type: "date", name: "birth_date", nullable: true })
+  birthDate: string;
+
+  @Column({ nullable: true })
+  phone: string;
+
+  @Column({ nullable: true })
+  email: string;
+
+  @Column({ type: "text", nullable: true })
+  address: string;
+
+  // Info du cours (simple référence, pas de FK)
+  @Column({ name: "course_id", nullable: true })
   courseId: number;
 
-  @ManyToOne(() => Course, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "course_id" })
-  course: Course;
+  @Column({ name: "course_title", nullable: true })
+  courseTitle: string;
 
-  @Column({ name: "payment_plan_id", nullable: true })
-  paymentPlanId: number;
+  // Frais d'inscription
+  @Column({ name: "registration_fee", type: "decimal", precision: 10, scale: 2, default: 0 })
+  registrationFee: number;
 
-  @ManyToOne(() => PaymentPlan, (plan) => plan.enrollments)
-  @JoinColumn({ name: "payment_plan_id" })
-  paymentPlan: PaymentPlan;
+  @Column({ name: "is_registration_fee_paid", default: false })
+  isRegistrationFeePaid: boolean;
 
-  @Column({ type: "date", name: "start_date" })
-  startDate: string;
-
-  @Column({ type: "date", name: "end_date", nullable: true })
-  endDate: string;
-
-  @Column({ type: "enum", enum: EnrollmentStatus, default: EnrollmentStatus.ACTIVE })
-  status: EnrollmentStatus;
-
-  @Column({ name: "remaining_usage", default: 0 })
-  remainingUsage: number;
+  @Column({ type: "timestamp", name: "registration_fee_paid_at", nullable: true })
+  registrationFeePaidAt: Date;
 
   @CreateDateColumn({ name: "created_at" })
   createdAt: Date;
-
-  @OneToMany(() => Installment, (installment) => installment.enrollment)
-  installments: Installment[];
-
-  @OneToMany(() => Payment, (payment) => payment.enrollment)
-  payments: Payment[];
 }

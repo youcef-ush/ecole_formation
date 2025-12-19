@@ -1,7 +1,7 @@
-
 import QRCode from 'qrcode';
 import { AppDataSource } from '../config/database.config';
 import { Student } from '../entities/Student.entity';
+import { Enrollment } from '../entities/Enrollment.entity';
 
 /**
  * Service de génération et validation de QR codes
@@ -11,25 +11,18 @@ import { Student } from '../entities/Student.entity';
  */
 export class QrCodeService {
   private studentRepository = AppDataSource.getRepository(Student);
+  private enrollmentRepository = AppDataSource.getRepository(Enrollment);
 
   /**
    * Génère un badge QR code pour un étudiant
    * Format : STUDENT-{id}-{timestamp}
    * 
    * @param studentId - ID de l'étudiant
-   * @returns URL du QR code généré (Data URL base64)
+   * @returns Objet avec qrCode et badgeQrCode
    */
   async generateStudentBadge(
     studentId: number
-  ): Promise<string> {
-    const student = await this.studentRepository.findOne({
-      where: { id: studentId },
-    });
-
-    if (!student) {
-      throw new Error(`Étudiant avec ID ${studentId} introuvable`);
-    }
-
+  ): Promise<{ qrCode: string; badgeQrCode: string }> {
     // Créer un code unique pour l'étudiant
     const timestamp = Date.now();
     const qrData = `STUDENT-${studentId}-${timestamp}`;
@@ -46,15 +39,13 @@ export class QrCodeService {
       },
     });
 
-    // Mettre à jour l'étudiant avec le nouveau badge
-    student.qrCode = qrData;
-    student.badgeQrCode = qrCodeDataUrl;
-    await this.studentRepository.save(student);
-
-    console.log(`✅ Badge QR généré pour l'étudiant ${student.firstName} ${student.lastName}`);
+    console.log(`✅ Badge QR généré pour l'étudiant #${studentId}`);
     console.log(`   Code: ${qrData}`);
 
-    return qrCodeDataUrl;
+    return {
+      qrCode: qrData,
+      badgeQrCode: qrCodeDataUrl
+    };
   }
 
   /**
@@ -80,9 +71,10 @@ export class QrCodeService {
       throw new Error('ID étudiant invalide dans le QR code');
     }
 
-    // Récupérer l'étudiant
+    // Récupérer l'étudiant avec enrollment
     const student = await this.studentRepository.findOne({
       where: { id: studentId },
+      relations: ['enrollment']
     });
 
     if (!student) {
@@ -94,7 +86,11 @@ export class QrCodeService {
       throw new Error('QR code invalide ou révoqué');
     }
 
-    console.log(`✅ Badge validé pour ${student.firstName} ${student.lastName}`);
+    const studentName = student.enrollment 
+      ? `${student.enrollment.firstName} ${student.enrollment.lastName}`
+      : `Student #${studentId}`;
+
+    console.log(`✅ Badge validé pour ${studentName}`);
     return student;
   }
 }

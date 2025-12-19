@@ -27,22 +27,44 @@ interface Course {
   title: string
   description: string
   type: string
+  category: string
   durationMonths: number
+  price: number
+  monthlyPrice?: number
   totalPrice: number
+  trainerId?: number
   isActive: boolean
+}
+
+interface Trainer {
+  id: number
+  firstName: string
+  lastName: string
+  specialty: string
 }
 
 export default function Courses() {
   const queryClient = useQueryClient()
   const [openDetails, setOpenDetails] = useState(false)
   const [openEdit, setOpenEdit] = useState(false)
+  const [openCreate, setOpenCreate] = useState(false)
+  const [openDelete, setOpenDelete] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
 
   const { data: courses, isLoading } = useQuery<Course[]>({
     queryKey: ['courses'],
     queryFn: async () => {
       const response = await api.get('/courses')
+      return response.data.data || response.data
+    },
+  })
+
+  const { data: trainers } = useQuery<Trainer[]>({
+    queryKey: ['trainers'],
+    queryFn: async () => {
+      const response = await api.get('/trainers')
       return response.data.data || response.data
     },
   })
@@ -67,6 +89,18 @@ export default function Courses() {
     setOpenEdit(true)
   }
 
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await api.post('/courses', data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courses'] })
+      setOpenCreate(false)
+      setSelectedCategory('')
+    },
+  })
+
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await api.put(`/courses/${selectedCourse?.id}`, data)
@@ -79,16 +113,65 @@ export default function Courses() {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await api.delete(`/courses/${id}`)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courses'] })
+      setOpenDelete(false)
+      setOpenDetails(false)
+      setSelectedCourse(null)
+    },
+  })
+
+  const handleCreateCourse = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const category = formData.get('category') as string
+    const trainerId = formData.get('trainerId') as string
+    
+    createMutation.mutate({
+      title: formData.get('title'),
+      description: formData.get('description'),
+      category: category,
+      durationMonths: parseInt(formData.get('durationMonths') as string),
+      price: parseFloat(formData.get('price') as string),
+      trainerId: trainerId ? parseInt(trainerId) : null,
+    })
+  }
+
   const handleUpdateCourse = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
+    const trainerId = formData.get('trainerId') as string
+    
     updateMutation.mutate({
       title: formData.get('title'),
       description: formData.get('description'),
-      totalPrice: parseFloat(formData.get('totalPrice') as string),
+      price: parseFloat(formData.get('price') as string),
       durationMonths: parseInt(formData.get('durationMonths') as string),
-      type: formData.get('type'),
+      trainerId: trainerId ? parseInt(trainerId) : null,
     })
+  }
+
+  const handleDeleteClick = (course: Course, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedCourse(course)
+    setOpenDelete(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (selectedCourse) {
+      deleteMutation.mutate(selectedCourse.id)
+    }
+  }
+
+  const handleEditClickFromCard = (course: Course, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedCourse(course)
+    setOpenEdit(true)
   }
 
   if (isLoading) {
@@ -113,7 +196,7 @@ export default function Courses() {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          disabled
+          onClick={() => setOpenCreate(true)}
         >
           Ajouter une formation
         </Button>
@@ -167,8 +250,10 @@ export default function Courses() {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small">Modifier</Button>
-                  <Button size="small" color="error">
+                  <Button size="small" onClick={(e) => handleEditClickFromCard(course, e)}>
+                    Modifier
+                  </Button>
+                  <Button size="small" color="error" onClick={(e) => handleDeleteClick(course, e)}>
                     Supprimer
                   </Button>
                 </CardActions>
@@ -307,19 +392,38 @@ export default function Courses() {
                   <TextField
                     fullWidth
                     type="number"
-                    label="Prix Total (DA)"
-                    name="totalPrice"
-                    defaultValue={selectedCourse.totalPrice}
+                    label={"Prix (DA)"}
+                    name="price"
+                    defaultValue={selectedCourse.price}
                     required
                   />
                 </Grid>
 
                 <Grid item xs={12}>
                   <TextField
+                    select
                     fullWidth
-                    label="Type"
-                    name="type"
-                    defaultValue={selectedCourse.type}
+                    label="Formateur"
+                    name="trainerId"
+                    defaultValue={selectedCourse.trainerId || ''}
+                    SelectProps={{ native: true }}
+                    helperText="Sélectionnez le formateur (optionnel)"
+                  >
+                    <option value="">-- Aucun formateur assigné --</option>
+                    {trainers?.map((trainer) => (
+                      <option key={trainer.id} value={trainer.id}>
+                        {trainer.firstName} {trainer.lastName} - {trainer.specialty}
+                      </option>
+                    ))}
+                  </TextField>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Catégorie"
+                    name="category"
+                    defaultValue={selectedCourse.category}
                     disabled
                     helperText="La catégorie ne peut pas être modifiée"
                   />
@@ -336,6 +440,163 @@ export default function Courses() {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      {/* Dialog de création formation */}
+      <Dialog open={openCreate} onClose={() => setOpenCreate(false)} maxWidth="md" fullWidth>
+        <form onSubmit={handleCreateCourse}>
+          <DialogTitle>
+            <Typography variant="h6">Créer une Nouvelle Formation</Typography>
+          </DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Titre"
+                  name="title"
+                  required
+                  placeholder="Ex: Développement Web Fullstack"
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={4}
+                  label="Description"
+                  name="description"
+                  required
+                  placeholder="Description détaillée de la formation..."
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Catégorie"
+                  name="category"
+                  required
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  SelectProps={{ native: true }}
+                >
+                  <option value="">-- Choisir une catégorie --</option>
+                  <option value="Formation professionnelle">Formation professionnelle</option>
+                  <option value="Soutien scolaire">Soutien scolaire</option>
+                  <option value="Développement personnel">Développement personnel</option>
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Formateur"
+                  name="trainerId"
+                  SelectProps={{ native: true }}
+                  helperText="Sélectionnez le formateur qui assurera cette formation (optionnel)"
+                >
+                  <option value="">-- Aucun formateur assigné --</option>
+                  {trainers?.map((trainer) => (
+                    <option key={trainer.id} value={trainer.id}>
+                      {trainer.firstName} {trainer.lastName} - {trainer.specialty}
+                    </option>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Durée (mois)"
+                  name="durationMonths"
+                  required
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label={
+                    selectedCategory === 'Formation professionnelle'
+                      ? 'Prix de la formation (DA)'
+                      : selectedCategory === 'Soutien scolaire'
+                      ? 'Prix par mois (DA)'
+                      : selectedCategory === 'Développement personnel'
+                      ? 'Prix par séance (DA)'
+                      : 'Prix (DA)'
+                  }
+                  name="price"
+                  required
+                  inputProps={{ min: 0, step: 0.01 }}
+                  helperText={
+                    selectedCategory === 'Formation professionnelle'
+                      ? 'Prix total de la formation'
+                      : selectedCategory === 'Soutien scolaire'
+                      ? 'Abonnement mensuel'
+                      : selectedCategory === 'Développement personnel'
+                      ? 'Prix pour une séance'
+                      : 'Montant à payer'
+                  }
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => { setOpenCreate(false); setSelectedCategory('') }} disabled={createMutation.isPending}>
+              Annuler
+            </Button>
+            <Button type="submit" variant="contained" color="primary" disabled={createMutation.isPending}>
+              {createMutation.isPending ? 'Création...' : 'Créer la formation'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Dialog de confirmation de suppression */}
+      <Dialog open={openDelete} onClose={() => setOpenDelete(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Typography variant="h6" color="error">
+            Confirmer la suppression
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            Êtes-vous sûr de vouloir supprimer cette formation ?
+          </Typography>
+          {selectedCourse && (
+            <Paper sx={{ p: 2, mt: 2, bgcolor: 'error.50' }}>
+              <Typography variant="subtitle1" fontWeight={600}>
+                {selectedCourse.title}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {selectedCourse.description}
+              </Typography>
+            </Paper>
+          )}
+          <Typography variant="body2" color="warning.main" sx={{ mt: 2 }}>
+            ⚠️ Cette action est irréversible. L'affichage de cette formation chez les étudiants inscrits sera affecté, mais les étudiants eux-mêmes ne seront pas supprimés.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDelete(false)} disabled={deleteMutation.isPending}>
+            Annuler
+          </Button>
+          <Button 
+            variant="contained" 
+            color="error" 
+            onClick={handleConfirmDelete}
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box >
   )

@@ -72,9 +72,8 @@ router.post('/login', async (req: Request, res: Response, next) => {
       throw new AppError('Identifiants invalides', 401);
     }
 
-    if (!user.isActive) {
-      throw new AppError('Compte désactivé', 403);
-    }
+    // Note: isActive check removed from User entity
+    // If needed, can be added back to User.entity.ts
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },

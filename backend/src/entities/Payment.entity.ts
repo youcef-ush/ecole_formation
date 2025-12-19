@@ -1,11 +1,17 @@
-
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
-import { Enrollment } from "./Enrollment.entity";
-import { Installment } from "./Installment.entity";
+import { Student } from "./Student.entity";
+
+export enum PaymentMethod {
+  CASH = "CASH",
+  CARD = "CARD",
+  CHECK = "CHECK",
+  TRANSFER = "TRANSFER"
+}
 
 export enum PaymentType {
+  REGISTRATION = "REGISTRATION",
   INSTALLMENT = "INSTALLMENT",
-  REGISTRATION_FEE = "REGISTRATION_FEE"
+  SESSION = "SESSION"
 }
 
 @Entity("payments")
@@ -13,36 +19,28 @@ export class Payment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: "enrollment_id", nullable: true })
-  enrollmentId: number | null;
+  @Column({ name: "student_id" })
+  studentId: number;
 
-  @ManyToOne(() => Enrollment, (enrollment) => enrollment.payments, { onDelete: "CASCADE", nullable: true })
-  @JoinColumn({ name: "enrollment_id" })
-  enrollment: Enrollment | null;
+  @ManyToOne(() => Student, (student) => student.payments, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "student_id" })
+  student: Student;
 
-  @Column({ name: "installment_id", nullable: true })
-  installmentId: number;
-
-  @ManyToOne(() => Installment)
-  @JoinColumn({ name: "installment_id" })
-  installment: Installment;
-
-  @Column("decimal", { precision: 10, scale: 2 })
+  @Column({ type: "decimal", precision: 10, scale: 2 })
   amount: number;
 
-  @CreateDateColumn({ name: "payment_date" })
+  @Column({ type: "enum", enum: PaymentMethod, name: "payment_method", default: PaymentMethod.CASH })
+  paymentMethod: PaymentMethod;
+
+  @Column({ type: "enum", enum: PaymentType, name: "payment_type", default: PaymentType.REGISTRATION })
+  paymentType: PaymentType;
+
+  @Column({ type: "timestamp", name: "payment_date" })
   paymentDate: Date;
 
-  @Column({ default: "CASH" })
-  method: string;
-
   @Column({ type: "text", nullable: true })
-  note: string;
+  description: string;
 
-  @Column({
-    type: "enum",
-    enum: PaymentType,
-    default: PaymentType.INSTALLMENT
-  })
-  type: PaymentType;
+  @CreateDateColumn({ name: "created_at" })
+  createdAt: Date;
 }

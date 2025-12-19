@@ -1,45 +1,67 @@
-
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, OneToOne, JoinColumn, CreateDateColumn } from "typeorm";
 import { Enrollment } from "./Enrollment.entity";
+import { Course } from "./Course.entity";
+import { PaymentPlan } from "./PaymentPlan.entity";
+import { Payment } from "./Payment.entity";
 import { AccessLog } from "./AccessLog.entity";
+
+export enum StudentStatus {
+  PENDING = "PENDING",
+  PAID = "PAID",
+  ACTIVE = "ACTIVE",
+  COMPLETED = "COMPLETED",
+  CANCELLED = "CANCELLED"
+}
 
 @Entity("students")
 export class Student {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: "first_name" })
-  firstName: string;
+  // Lien unique vers l'inscription d'origine
+  @Column({ name: "enrollment_id", unique: true })
+  enrollmentId: number;
 
-  @Column({ name: "last_name" })
-  lastName: string;
+  @OneToOne(() => Enrollment)
+  @JoinColumn({ name: "enrollment_id" })
+  enrollment: Enrollment;
 
-  @Column({ type: "date", name: "birth_date", nullable: true })
-  birthDate: string;
-
-  @Column({ nullable: true })
-  phone: string;
-
-  @Column({ nullable: true })
-  email: string;
-
+  // QR codes
   @Column({ name: "qr_code", unique: true })
   qrCode: string;
 
-  @Column({ name: "is_registration_fee_paid", default: false })
-  isRegistrationFeePaid: boolean;
-
   @Column({ name: "badge_qr_code", type: "text", nullable: true })
-  badgeQrCode?: string;
+  badgeQrCode: string;
 
-  @Column({ type: "text", nullable: true })
-  address: string;
+  // Statut
+  @Column({ name: "is_active", default: true })
+  isActive: boolean;
+
+  @Column({ type: "enum", enum: StudentStatus, default: StudentStatus.ACTIVE })
+  status: StudentStatus;
+
+  // Relation avec la formation
+  @Column({ name: "course_id" })
+  courseId: number;
+
+  @ManyToOne(() => Course, (course) => course.students, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "course_id" })
+  course: Course;
+
+  // Plan de paiement (optionnel)
+  @Column({ name: "payment_plan_id", nullable: true })
+  paymentPlanId: number;
+
+  @ManyToOne(() => PaymentPlan, (plan) => plan.students, { nullable: true })
+  @JoinColumn({ name: "payment_plan_id" })
+  paymentPlan: PaymentPlan;
 
   @CreateDateColumn({ name: "created_at" })
   createdAt: Date;
 
-  @OneToMany(() => Enrollment, (enrollment) => enrollment.student)
-  enrollments: Enrollment[];
+  // Relations
+  @OneToMany(() => Payment, (payment) => payment.student)
+  payments: Payment[];
 
   @OneToMany(() => AccessLog, (log) => log.student)
   accessLogs: AccessLog[];

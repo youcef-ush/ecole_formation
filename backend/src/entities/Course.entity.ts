@@ -1,8 +1,6 @@
-
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany, CreateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn, CreateDateColumn } from "typeorm";
 import { Trainer } from "./Trainer.entity";
-import { Enrollment } from "./Enrollment.entity";
-import { AccessLog } from "./AccessLog.entity";
+import { Student } from "./Student.entity";
 
 export enum CourseType {
   ABONNEMENT = "ABONNEMENT",
@@ -12,6 +10,12 @@ export enum CourseType {
 export enum PriceModel {
   MONTHLY = "MONTHLY",
   GLOBAL = "GLOBAL"
+}
+
+export enum CourseCategory {
+  PROFESSIONAL = "Formation professionnelle",
+  TUTORING = "Soutien scolaire",
+  PERSONAL = "Développement personnel"
 }
 
 @Entity("courses")
@@ -28,20 +32,9 @@ export class Course {
   @Column({ name: "trainer_id", nullable: true })
   trainerId: number;
 
-  @ManyToOne(() => Trainer, (trainer) => trainer.courses, { onDelete: "SET NULL" })
+  @ManyToOne(() => Trainer, (trainer) => trainer.courses)
   @JoinColumn({ name: "trainer_id" })
   trainer: Trainer;
-
-  // Finance
-  @Column("decimal", { name: "total_price", precision: 10, scale: 2 })
-  totalPrice: number;
-
-  @Column("decimal", { name: "registration_fee", precision: 10, scale: 2, default: 0 })
-  registrationFee: number;
-
-  // Configuration
-  @Column({ name: "duration_months", default: 1 })
-  durationMonths: number;
 
   @Column({ type: "enum", enum: CourseType, default: CourseType.ABONNEMENT })
   type: CourseType;
@@ -49,15 +42,25 @@ export class Course {
   @Column({ type: "enum", enum: PriceModel, name: "price_model", default: PriceModel.MONTHLY })
   priceModel: PriceModel;
 
-  @Column({ name: "is_active", default: true })
-  isActive: boolean;
+  @Column({ type: "varchar", length: 255, nullable: true })
+  category: string;
+
+  @Column({ name: "duration_months", nullable: true })
+  durationMonths: number;
+
+  @Column({ name: "total_hours", nullable: true })
+  totalHours: number;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  price: number;
+
+  @Column({ name: "monthly_price", type: "decimal", precision: 10, scale: 2, nullable: true })
+  monthlyPrice: number;
 
   @CreateDateColumn({ name: "created_at" })
   createdAt: Date;
 
-  @OneToMany(() => Enrollment, (enrollment) => enrollment.course)
-  enrollments: Enrollment[];
-
-  @OneToMany(() => AccessLog, (log) => log.course)
-  accessLogs: AccessLog[];
+  // Relations
+  @OneToMany(() => Student, (student) => student.course)
+  students: Student[];
 }

@@ -1,13 +1,11 @@
-
 import { Router, Response } from 'express';
 import { AppDataSource } from '../config/database.config';
 import { Student } from '../entities/Student.entity';
 import { User, UserRole } from '../entities/User.entity';
-import { Enrollment, EnrollmentStatus } from '../entities/Enrollment.entity';
+import { Enrollment } from "../entities/Enrollment.entity";
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
 import { AppError } from '../middleware/error.middleware';
 import { QrCodeService } from '../services/qrcode.service';
-import bcrypt from 'bcrypt';
 
 const router = Router();
 const qrCodeService = new QrCodeService();
@@ -21,7 +19,7 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const studentRepo = AppDataSource.getRepository(Student);
     const students = await studentRepo.find({
-      relations: ['enrollments', 'enrollments.course'],
+      relations: ['enrollment', 'course', 'paymentPlan'],
       order: { createdAt: 'DESC' },
     });
 
@@ -42,7 +40,7 @@ router.get('/:id', async (req: AuthRequest, res: Response, next) => {
 
     const student = await studentRepo.findOne({
       where: { id: parseInt(id) },
-      relations: ['enrollments', 'enrollments.course', 'accessLogs'],
+      relations: ['enrollment', 'course', 'paymentPlan', 'paymentPlan.installments', 'payments', 'accessLogs'],
     });
 
     if (!student) {
@@ -58,50 +56,39 @@ router.get('/:id', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
-// POST /api/students - Créer un nouvel étudiant
+// POST /api/students - Créer un étudiant (Note: normalement via markEnrollmentPaid)
+// Cette route est pour des cas exceptionnels
 router.post('/', async (req: AuthRequest, res: Response, next) => {
   try {
-    const { email, password, firstName, lastName, dateOfBirth, phone, address, qrCode } = req.body;
+    const { enrollmentId, courseId } = req.body;
 
-    if (!firstName || !lastName) {
-      throw new AppError('Nom et Prénom obligatoires', 400);
+    if (!enrollmentId || !courseId) {
+      throw new AppError('enrollmentId et courseId sont obligatoires', 400);
     }
 
     const studentRepo = AppDataSource.getRepository(Student);
 
-    // Optional User creation skipped for brevity if not strictly needed or handle if email provided
-    // Taking simplified route: Create Student directly
-
-    const student = new Student();
-    student.firstName = firstName;
-    student.lastName = lastName;
-    student.phone = phone;
-    student.address = address;
-    student.birthDate = dateOfBirth; // Assuming string or date handled
-    // QR Code: Use provided or generate temp
-    student.qrCode = qrCode || `TEMP-${Date.now()}`;
-
-    // Check if email provided to link user? (Leaving out for now to match new schema focus)
+    // Créer étudiant temporaire (normalement via enrollment.service)
+    const student = studentRepo.create({
+      enrollmentId,
+      courseId,
+      qrCode: `TEMP-${Date.now()}`,
+      isActive: true
+    });
 
     await studentRepo.save(student);
 
-    // Generate real badge if not provided
-    if (!qrCode) {
-      await qrCodeService.generateStudentBadge(student.id);
-      // Reload student to get updated QR code data
-      const updatedStudent = await studentRepo.findOne({
-        where: { id: student.id }
-      });
-      if (updatedStudent) {
-        student.badgeQrCode = updatedStudent.badgeQrCode;
-        student.qrCode = updatedStudent.qrCode;
-      }
-    }
+    // Générer QR badge
+    await qrCodeService.generateStudentBadge(student.id);
+    const updatedStudent = await studentRepo.findOne({
+      where: { id: student.id },
+      relations: ['enrollment', 'course']
+    });
 
     res.status(201).json({
       success: true,
       message: 'Étudiant créé avec succès',
-      data: student,
+      data: updatedStudent,
     });
   } catch (error) {
     next(error);
@@ -112,7 +99,7 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
 router.put('/:id', async (req: AuthRequest, res: Response, next) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, phone, address } = req.body;
+    const { isActive, status } = req.body;
 
     const studentRepo = AppDataSource.getRepository(Student);
     const student = await studentRepo.findOne({ where: { id: parseInt(id) } });
@@ -121,12 +108,8 @@ router.put('/:id', async (req: AuthRequest, res: Response, next) => {
       throw new AppError('Étudiant non trouvé', 404);
     }
 
-    studentRepo.merge(student, {
-      firstName,
-      lastName,
-      phone,
-      address,
-    });
+    if (isActive !== undefined) student.isActive = isActive;
+    if (status !== undefined) student.status = status;
 
     await studentRepo.save(student);
 
@@ -148,20 +131,10 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
 
     const student = await studentRepo.findOne({
       where: { id: parseInt(id) },
-      relations: ['enrollments'],
     });
 
     if (!student) {
       throw new AppError('Étudiant non trouvé', 404);
-    }
-
-    // Vérifier si l'étudiant a des inscriptions actives
-    const activeEnrollments = student.enrollments?.filter(
-      (e) => e.status === EnrollmentStatus.ACTIVE
-    );
-
-    if (activeEnrollments && activeEnrollments.length > 0) {
-      throw new AppError('Impossible de supprimer un étudiant avec des inscriptions actives', 400);
     }
 
     await studentRepo.remove(student);
@@ -175,36 +148,32 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
-// Generate Badge
-router.post('/:id/generate-badge', async (req: AuthRequest, res: Response, next) => {
+// POST /api/students/:id/regenerate-qr - Regénérer le QR code
+router.post('/:id/regenerate-qr', async (req: AuthRequest, res: Response, next) => {
   try {
     const { id } = req.params;
     const studentRepo = AppDataSource.getRepository(Student);
-    const student = await studentRepo.findOne({ where: { id: parseInt(id) } });
 
-    if (!student) throw new AppError('Étudiant non trouvé', 404);
-
-    const qrData = await qrCodeService.generateStudentBadge(student.id);
-
-    res.json({
-      success: true,
-      data: { qrCode: qrData }
+    const student = await studentRepo.findOne({
+      where: { id: parseInt(id) },
+      relations: ['enrollment']
     });
-  } catch (error) {
-    next(error);
-  }
-});
 
-// Validate Badge
-router.get('/validate-badge/:qrCode', async (req: AuthRequest, res: Response, next) => {
-  try {
-    const { qrCode } = req.params;
-    const student = await qrCodeService.validateStudentQr(qrCode);
+    if (!student) {
+      throw new AppError('Étudiant non trouvé', 404);
+    }
+
+    await qrCodeService.generateStudentBadge(student.id);
+
+    const updatedStudent = await studentRepo.findOne({
+      where: { id: parseInt(id) },
+      relations: ['enrollment']
+    });
 
     res.json({
       success: true,
-      message: 'Badge valide',
-      data: student
+      message: 'QR code régénéré avec succès',
+      data: updatedStudent,
     });
   } catch (error) {
     next(error);

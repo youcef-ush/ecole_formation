@@ -17,7 +17,7 @@ router.use(authorize(UserRole.ADMIN));
 router.get('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const courseRepo = AppDataSource.getRepository(Course);
-    const courses = await courseRepo.find({ where: { isActive: true } });
+    const courses = await courseRepo.find();
 
     res.json({ success: true, data: courses });
   } catch (error) {
@@ -87,6 +87,29 @@ router.put('/:id', async (req: AuthRequest, res: Response, next) => {
     await courseRepo.save(course);
 
     res.json({ success: true, data: course });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/courses/:id
+ */
+router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const courseRepo = AppDataSource.getRepository(Course);
+    const course = await courseRepo.findOne({ where: { id: parseInt(req.params.id) } });
+
+    if (!course) {
+      throw new AppError('Formation non trouvée', 404);
+    }
+
+    await courseRepo.remove(course);
+
+    res.json({ 
+      success: true, 
+      message: 'Formation supprimée avec succès' 
+    });
   } catch (error) {
     next(error);
   }

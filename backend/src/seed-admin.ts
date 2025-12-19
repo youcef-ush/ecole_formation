@@ -25,12 +25,9 @@ async function createAdminUser() {
     const hashedPassword = await bcrypt.hash('admin123', 10);
     
     const adminUser = userRepo.create({
-      firstName: 'Admin',
-      lastName: 'User',
       email: 'admin2@ecole.dz',
       password: hashedPassword,
       role: UserRole.ADMIN,
-      isActive: true,
     });
 
     await userRepo.save(adminUser);

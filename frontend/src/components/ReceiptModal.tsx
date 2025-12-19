@@ -160,7 +160,7 @@ export default function ReceiptModal({ open, onClose, data }: ReceiptModalProps)
                         .receipt-print-content, .receipt-print-content * {
                             visibility: visible;
                         }
-                        @page { size: A4; margin: 10mm; }
+                        @page { size: A4; margin: 8mm; }
                         html, body { height: auto !important; }
                         .receipt-print-content {
                             /* Use normal flow instead of absolute positioning to avoid overflow/extra page */
@@ -176,10 +176,10 @@ export default function ReceiptModal({ open, onClose, data }: ReceiptModalProps)
                             page-break-inside: avoid;
                             break-inside: avoid;
                             /* Make sure content doesn't overflow to force another page */
-                            max-height: calc(297mm - 20mm);
+                            max-height: calc(297mm - 16mm);
                             overflow: hidden;
                             /* slightly reduce font-size to avoid small overflows */
-                            font-size: 13px;
+                            font-size: 12px;
                         }
                         /* reset margins for print to be conservative */
                         .receipt-print-content * {

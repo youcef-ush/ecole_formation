@@ -1,88 +1,127 @@
-
 import { AppDataSource } from "../config/database.config";
-import { Payment } from "../entities/Payment.entity";
-import { Installment } from "../entities/Installment.entity";
-import { Enrollment } from "../entities/Enrollment.entity";
+import { Payment, PaymentMethod, PaymentType } from "../entities/Payment.entity";
+import { Installment, InstallmentStatus } from "../entities/Installment.entity";
 import { Student } from "../entities/Student.entity";
+import { PaymentPlan } from "../entities/PaymentPlan.entity";
 
 export class PaymentService {
     private paymentRepo = AppDataSource.getRepository(Payment);
     private installmentRepo = AppDataSource.getRepository(Installment);
-    private enrollmentRepo = AppDataSource.getRepository(Enrollment);
+    private studentRepo = AppDataSource.getRepository(Student);
+    private planRepo = AppDataSource.getRepository(PaymentPlan);
 
-    async processPayment(enrollmentId: number, amount: number, method: string = "CASH", note?: string) {
-        const enrollment = await this.enrollmentRepo.findOne({
-            where: { id: enrollmentId },
-            relations: ["installments"]
+    /**
+     * Enregistrer un paiement pour un étudiant
+     * paymentType: REGISTRATION, INSTALLMENT, SESSION
+     */
+    async processPayment(
+        studentId: number,
+        amount: number,
+        paymentMethod: PaymentMethod = PaymentMethod.CASH,
+        paymentType: PaymentType = PaymentType.REGISTRATION,
+        description?: string
+    ) {
+        return await AppDataSource.manager.transaction(async (manager) => {
+            const student = await manager.findOne(Student, { where: { id: studentId } });
+            if (!student) {
+                throw new Error("Student not found");
+            }
+
+            // Créer le paiement
+            const payment = manager.create(Payment, {
+                studentId: studentId,
+                amount: amount,
+                paymentMethod: paymentMethod,
+                paymentType: paymentType,
+                paymentDate: new Date(),
+                description: description
+            });
+
+            const savedPayment = await manager.save(Payment, payment);
+
+            // Si c'est un paiement d'échéance, on marque les installments comme payés
+            if (paymentType === PaymentType.INSTALLMENT && student.paymentPlanId) {
+                await this.applyPaymentToInstallments(manager, student.paymentPlanId, amount);
+            }
+
+            return savedPayment;
+        });
+    }
+
+    /**
+     * Appliquer un paiement aux échéances non payées (ordre chronologique)
+     */
+    private async applyPaymentToInstallments(manager: any, paymentPlanId: number, amount: number) {
+        // Récupérer les installments non payés, triés par date
+        const unpaidInstallments = await manager.find(Installment, {
+            where: {
+                paymentPlanId: paymentPlanId,
+                status: InstallmentStatus.PENDING
+            },
+            order: { dueDate: 'ASC' }
         });
 
-        if (!enrollment) throw new Error("Enrollment not found");
-
-        // 1. Record the Payment (The Cash Flow)
-        const payment = new Payment();
-        payment.enrollment = enrollment;
-        payment.amount = amount;
-        payment.method = method;
-        payment.note = note;
-
-        const savedPayment = await this.paymentRepo.save(payment);
-
-        // 2. Automagically Pay off Debt (Installments)
-        // Application Strategy: Pay oldest unpaid installments first.
-
-        let remainingPayment = Number(amount);
-
-        // Sort installments by date
-        const unpaidInstallments = enrollment.installments
-            .filter(i => !i.isPaid)
-            .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+        let remainingAmount = amount;
 
         for (const installment of unpaidInstallments) {
-            if (remainingPayment <= 0) break;
+            if (remainingAmount <= 0) break;
 
-            const amountDue = Number(installment.amount);
+            const installmentAmount = Number(installment.amount);
 
-            // Simplified Logic: If payment covers the installment, mark as paid.
-            // We are NOT doing partial payments on installments for this MVP complexity level.
-            // We assume the user pays exact amounts or we mark it paid if they pay "enough".
+            if (remainingAmount >= installmentAmount) {
+                // Payer complètement cette échéance
+                installment.status = InstallmentStatus.PAID;
+                installment.paidDate = new Date();
+                await manager.save(Installment, installment);
 
-            // Option A: Strict Equality
-            // Option B: Threshold
-
-            // Let's go with: If they pay, we try to clear full installments.
-            // If remainingPayment >= amountDue, we clear it.
-
-            if (remainingPayment >= amountDue) {
-                installment.isPaid = true;
-                installment.paidAt = new Date();
-                await this.installmentRepo.save(installment);
-
-                remainingPayment -= amountDue;
-
-                // Link payment to installment (logic limits to 1 link, but 1 payment might pay 2 installments)
-                // For trace, we set it on the first one satisfied or leave null if multiple.
-                // Let's update payment with the first installment ID just for ref.
-                if (!savedPayment.installmentId) {
-                    savedPayment.installmentId = installment.id;
-                    await this.paymentRepo.save(savedPayment);
-                }
+                remainingAmount -= installmentAmount;
+            } else {
+                // Paiement partiel (on ne marque pas comme payé)
+                break;
             }
         }
+    }
 
-        // If this payment was intended as registration validation, mark the student's fee status.
-        // Heuristic: when there are no installments or the enrollment had a pending status, we mark registration fee paid.
-        try {
-            const student = (enrollment as any).student as Student | undefined;
-            if (student && !student.isRegistrationFeePaid) {
-                student.isRegistrationFeePaid = true;
-                await AppDataSource.getRepository(Student).save(student);
-            }
-        } catch (err) {
-            // Non-fatal: keep payment processing successful even if marking the student fails
-            console.warn('Warning: failed to mark student registration fee status', err);
+    /**
+     * Obtenir l'historique des paiements d'un étudiant
+     */
+    async getStudentPayments(studentId: number) {
+        return await this.paymentRepo.find({
+            where: { studentId },
+            order: { paymentDate: 'DESC' }
+        });
+    }
+
+    /**
+     * Obtenir tous les paiements
+     */
+    async getAllPayments() {
+        return await this.paymentRepo.find({
+            relations: ['student', 'student.enrollment', 'student.course'],
+            order: { paymentDate: 'DESC' }
+        });
+    }
+
+    /**
+     * Obtenir le total des paiements d'un étudiant
+     */
+    async getStudentTotalPayments(studentId: number) {
+        const payments = await this.paymentRepo.find({ where: { studentId } });
+        return payments.reduce((total, payment) => total + Number(payment.amount), 0);
+    }
+
+    /**
+     * Obtenir les échéances d'un étudiant
+     */
+    async getStudentInstallments(studentId: number) {
+        const student = await this.studentRepo.findOne({ where: { id: studentId } });
+        if (!student || !student.paymentPlanId) {
+            return [];
         }
 
-        return { payment: savedPayment, remainingCredit: remainingPayment };
+        return await this.installmentRepo.find({
+            where: { paymentPlanId: student.paymentPlanId },
+            order: { dueDate: 'ASC' }
+        });
     }
 }
-

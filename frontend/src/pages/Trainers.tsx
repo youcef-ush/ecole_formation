@@ -20,9 +20,14 @@ import {
   Grid,
   TextField,
   InputAdornment,
+  Alert,
+  IconButton,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
+import UploadFileIcon from '@mui/icons-material/UploadFile'
+import DownloadIcon from '@mui/icons-material/Download'
+import DeleteIcon from '@mui/icons-material/Delete'
 import api from '../services/api'
 
 interface Trainer {
@@ -33,6 +38,16 @@ interface Trainer {
   phone: string
   specialties: string[]
   bio: string
+  cv?: string
+  courses?: Course[]
+}
+
+interface Course {
+  id: number
+  title: string
+  category: string
+  durationMonths: number
+  price: number
 }
 
 export default function Trainers() {
@@ -41,6 +56,7 @@ export default function Trainers() {
   const [openDetails, setOpenDetails] = useState(false)
   const [openEdit, setOpenEdit] = useState(false)
   const [openCreate, setOpenCreate] = useState(false)
+  const [openDelete, setOpenDelete] = useState(false)
   const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null)
 
   const { data: trainers, isLoading } = useQuery<Trainer[]>({
@@ -49,6 +65,17 @@ export default function Trainers() {
       const response = await api.get('/trainers')
       return response.data.data || response.data
     },
+  })
+
+  // Charger les formations d'un formateur spécifique
+  const { data: trainerCourses } = useQuery<Course[]>({
+    queryKey: ['trainer-courses', selectedTrainer?.id],
+    queryFn: async () => {
+      if (!selectedTrainer?.id) return []
+      const response = await api.get(`/trainers/${selectedTrainer.id}/courses`)
+      return response.data.data || response.data
+    },
+    enabled: !!selectedTrainer?.id && openDetails,
   })
 
   const filteredTrainers = trainers?.filter((trainer) => {
@@ -95,6 +122,25 @@ export default function Trainers() {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await api.delete(`/trainers/${id}`)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trainers'] })
+      setOpenDelete(false)
+      setOpenDetails(false)
+      setSelectedTrainer(null)
+    },
+  })
+
+  const handleConfirmDelete = () => {
+    if (selectedTrainer) {
+      deleteMutation.mutate(selectedTrainer.id)
+    }
+  }
+
   const handleUpdateTrainer = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
@@ -103,6 +149,7 @@ export default function Trainers() {
       lastName: formData.get('lastName'),
       phone: formData.get('phone'),
       bio: formData.get('bio'),
+      cv: formData.get('cv'),
     })
   }
 
@@ -117,6 +164,7 @@ export default function Trainers() {
         ? (formData.get('specialties') as string).split(',').map(s => s.trim())
         : [],
       bio: formData.get('bio'),
+      cv: formData.get('cv'),
     })
   }
 
@@ -261,11 +309,79 @@ export default function Trainers() {
                   </Paper>
                 </Grid>
               )}
+
+              {selectedTrainer.cv && (
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary">
+                    CV
+                  </Typography>
+                  <Box display="flex" alignItems="center" gap={1} mt={1}>
+                    <Button
+                      variant="outlined"
+                      startIcon={<DownloadIcon />}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        window.open(`${import.meta.env.VITE_API_URL}/uploads/${selectedTrainer.cv}`, '_blank')
+                      }}
+                    >
+                      Voir le CV
+                    </Button>
+                    <Chip label={selectedTrainer.cv} size="small" />
+                  </Box>
+                </Grid>
+              )}
+
+              {/* Formations du formateur */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                  Formations assurées
+                </Typography>
+                {trainerCourses && trainerCourses.length > 0 ? (
+                  <TableContainer component={Paper} sx={{ mt: 1 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Formation</TableCell>
+                          <TableCell>Catégorie</TableCell>
+                          <TableCell>Durée</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {trainerCourses.map((course) => (
+                          <TableRow key={course.id}>
+                            <TableCell>{course.title}</TableCell>
+                            <TableCell>
+                              <Chip label={course.category} size="small" />
+                            </TableCell>
+                            <TableCell>{course.durationMonths} mois</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <Paper sx={{ p: 2, bgcolor: 'grey.50', mt: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Aucune formation assignée
+                    </Typography>
+                  </Paper>
+                )}
+              </Grid>
             </Grid>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDetails(false)}>Fermer</Button>
+          <Button 
+            variant="outlined" 
+            color="error" 
+            onClick={() => {
+              setOpenDetails(false)
+              setOpenDelete(true)
+            }}
+          >
+            Supprimer
+          </Button>
           <Button variant="contained" color="primary" onClick={handleEditClick}>
             Modifier
           </Button>
@@ -332,6 +448,60 @@ export default function Trainers() {
                     name="bio"
                     defaultValue={selectedTrainer.bio}
                   />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    CV (Optionnel)
+                  </Typography>
+                  {selectedTrainer.cv && (
+                    <Box display="flex" alignItems="center" gap={1} mb={2}>
+                      <Chip label={selectedTrainer.cv} />
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => window.open(`${import.meta.env.VITE_API_URL}/trainers/${selectedTrainer.id}/cv`, '_blank')}
+                      >
+                        <DownloadIcon />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={async () => {
+                          if (confirm('Supprimer le CV ?')) {
+                            await api.delete(`/trainers/${selectedTrainer.id}/cv`)
+                            queryClient.invalidateQueries({ queryKey: ['trainers'] })
+                          }
+                        }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  )}
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    startIcon={<UploadFileIcon />}
+                  >
+                    {selectedTrainer.cv ? 'Remplacer le CV' : 'Upload CV (PDF)'}
+                    <input
+                      type="file"
+                      hidden
+                      accept=".pdf,application/pdf"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          const formData = new FormData()
+                          formData.append('cv', file)
+                          await api.post(`/trainers/${selectedTrainer.id}/upload-cv`, formData, {
+                            headers: { 'Content-Type': 'multipart/form-data' }
+                          })
+                          queryClient.invalidateQueries({ queryKey: ['trainers'] })
+                          alert('CV uploaded successfully!')
+                        }
+                      }}
+                    />
+                  </Button>
                 </Grid>
               </Grid>
             )}
@@ -400,6 +570,12 @@ export default function Trainers() {
                   name="bio"
                 />
               </Grid>
+
+              <Grid item xs={12}>
+                <Alert severity="info">
+                  Vous pourrez uploader un CV (PDF) après la création du formateur
+                </Alert>
+              </Grid>
             </Grid>
           </DialogContent>
           <DialogActions>
@@ -411,6 +587,46 @@ export default function Trainers() {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      {/* Dialog de confirmation de suppression */}
+      <Dialog open={openDelete} onClose={() => setOpenDelete(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Typography variant="h6" color="error">
+            Confirmer la suppression
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            Êtes-vous sûr de vouloir supprimer ce formateur ?
+          </Typography>
+          {selectedTrainer && (
+            <Paper sx={{ p: 2, mt: 2, bgcolor: 'error.50' }}>
+              <Typography variant="subtitle1" fontWeight={600}>
+                {selectedTrainer.firstName} {selectedTrainer.lastName}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {selectedTrainer.email}
+              </Typography>
+            </Paper>
+          )}
+          <Typography variant="body2" color="warning.main" sx={{ mt: 2 }}>
+            ⚠️ Cette action est irréversible. Les formations assignées à ce formateur ne seront pas supprimées mais n'auront plus de formateur assigné.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDelete(false)} disabled={deleteMutation.isPending}>
+            Annuler
+          </Button>
+          <Button 
+            variant="contained" 
+            color="error" 
+            onClick={handleConfirmDelete}
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   )

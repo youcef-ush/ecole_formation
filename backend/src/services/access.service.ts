@@ -1,84 +1,83 @@
-
 import { AppDataSource } from "../config/database.config";
 import { In } from "typeorm";
 import { AccessLog, AccessStatus } from "../entities/AccessLog.entity";
-import { Student } from "../entities/Student.entity";
+import { Student, StudentStatus } from "../entities/Student.entity";
 import { Course } from "../entities/Course.entity";
 import { Enrollment } from "../entities/Enrollment.entity";
-import { Installment } from "../entities/Installment.entity";
+import { Installment, InstallmentStatus } from "../entities/Installment.entity";
 
 export class AccessService {
     private logRepo = AppDataSource.getRepository(AccessLog);
     private studentRepo = AppDataSource.getRepository(Student);
-    private enrollmentRepo = AppDataSource.getRepository(Enrollment);
     private installmentRepo = AppDataSource.getRepository(Installment);
 
     async scan(qrCode: string, courseId: number) {
         console.log(`[AccessService] Scan request - QR: "${qrCode}", CourseID: ${courseId}`);
 
         // 1. Identify Student
-        const student = await this.studentRepo.findOneBy({ qrCode });
+        const student = await this.studentRepo.findOne({ 
+            where: { qrCode },
+            relations: ['enrollment', 'course', 'paymentPlan']
+        });
+
         if (!student) {
             console.log(`[AccessService] Student not found for QR: "${qrCode}"`);
             return this.logAccess(null, courseId, AccessStatus.DENIED, "QR Code inconnu");
         }
-        console.log(`[AccessService] Found Student: ${student.firstName} ${student.lastName} (ID: ${student.id})`);
 
-        // 2. Find Active Enrollment for this Course
-        console.log(`[AccessService] Locking for enrollment - StudentID: ${student.id}, CourseID: ${courseId}`);
+        const studentName = student.enrollment 
+            ? `${student.enrollment.firstName} ${student.enrollment.lastName}`
+            : `Student #${student.id}`;
 
-        // Debug: Check ALL enrollments for this student
-        const allEnrollments = await this.enrollmentRepo.find({ where: { studentId: student.id } });
-        console.log(`[AccessService] All enrollments for student ${student.id}:`, allEnrollments.map(e => ({ id: e.id, courseId: e.courseId, status: e.status })));
+        console.log(`[AccessService] Found Student: ${studentName} (ID: ${student.id})`);
 
-
-        const enrollment = await this.enrollmentRepo.findOne({
-            where: {
-                studentId: student.id,
-                courseId: courseId,
-                status: In(["ACTIVE", "COMPLETED"]) as any
-            },
-            relations: ["installments", "course"]
-        });
-
-        if (!enrollment) {
-            console.log(`[AccessService] No ACTIVE enrollment found for Student ${student.id} in Course ${courseId}`);
-            return this.logAccess(student.id, courseId, AccessStatus.DENIED, "Non inscrit ou inactif");
+        // 2. Vérifier que l'étudiant est dans le bon cours
+        if (student.courseId !== courseId) {
+            console.log(`[AccessService] Student is enrolled in course ${student.courseId}, not ${courseId}`);
+            return this.logAccess(student.id, courseId, AccessStatus.DENIED, "Non inscrit à ce cours");
         }
 
-        console.log(`[AccessService] Found Enrollment ID: ${enrollment.id}, Status: ${enrollment.status}`);
-
-        // 3. CHECK 1: FINANCE (The Barrier)
-        // Rule: Are there any installments DUE (past date) and NOT PAID?
-        const today = new Date();
-        const overdueInstallments = enrollment.installments.filter(inst => {
-            const dueDate = new Date(inst.dueDate);
-            const isOverdue = !inst.isPaid && dueDate < today;
-            if (isOverdue) {
-                console.log(`[AccessService] Overdue Installment: Due ${dueDate.toISOString()}, Amount ${inst.amount}`);
-            }
-            return isOverdue;
-        });
-
-        if (overdueInstallments.length > 0) {
-            // Build reason string
-            const totalDebt = overdueInstallments.reduce((sum, inst) => sum + Number(inst.amount), 0);
-            console.log(`[AccessService] Access DENIED - Debt: ${totalDebt} DA`);
-            return this.logAccess(student.id, courseId, AccessStatus.DENIED, `Dette impayée: ${totalDebt} DA`);
+        // 3. Vérifier le statut de l'étudiant
+        if (student.status === StudentStatus.CANCELLED) {
+            console.log(`[AccessService] Student cancelled`);
+            return this.logAccess(student.id, courseId, AccessStatus.DENIED, "Inscription annulée");
         }
 
-        // 4. CHECK 2: USAGE (For Packs)
-        if (enrollment.course.type === "PACK_HEURES") {
-            if (enrollment.remainingUsage <= 0) {
-                return this.logAccess(student.id, courseId, AccessStatus.DENIED, "Pack épuisé (0 crédits)");
-            }
+        if (student.status === StudentStatus.PENDING) {
+            console.log(`[AccessService] Student pending payment`);
+            return this.logAccess(student.id, courseId, AccessStatus.DENIED, "Inscription en attente de paiement");
+        }
 
-            // Consolidate Usage
-            enrollment.remainingUsage -= 1;
-            await this.enrollmentRepo.save(enrollment);
+        if (!student.isActive) {
+            console.log(`[AccessService] Student inactive`);
+            return this.logAccess(student.id, courseId, AccessStatus.DENIED, "Compte inactif");
+        }
+
+        // 4. CHECK FINANCE: Vérifier les échéances impayées
+        if (student.paymentPlanId) {
+            const overdueInstallments = await this.installmentRepo.find({
+                where: {
+                    paymentPlanId: student.paymentPlanId,
+                    status: InstallmentStatus.PENDING
+                },
+                order: { dueDate: 'ASC' }
+            });
+
+            const today = new Date();
+            const actuallyOverdue = overdueInstallments.filter(inst => {
+                const dueDate = new Date(inst.dueDate);
+                return dueDate < today;
+            });
+
+            if (actuallyOverdue.length > 0) {
+                const totalDebt = actuallyOverdue.reduce((sum, inst) => sum + Number(inst.amount), 0);
+                console.log(`[AccessService] Access DENIED - Debt: ${totalDebt} DA`);
+                return this.logAccess(student.id, courseId, AccessStatus.DENIED, `Dette impayée: ${totalDebt} DA`);
+            }
         }
 
         // 5. ALL GREEN -> GRANTED
+        console.log(`[AccessService] Access GRANTED for ${studentName}`);
         return this.logAccess(student.id, courseId, AccessStatus.GRANTED, "Bienvenue");
     }
 
@@ -101,9 +100,9 @@ export class AccessService {
 
     async getHistory(limit: number = 20) {
         return this.logRepo.find({
-            order: { scanTime: "DESC" },
+            order: { accessTime: "DESC" },
             take: limit,
-            relations: ["student", "course"]
+            relations: ["student", "student.enrollment", "course"]
         });
     }
 }

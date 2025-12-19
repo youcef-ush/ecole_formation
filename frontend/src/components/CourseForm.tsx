@@ -46,14 +46,9 @@ interface CourseFormProps {
 }
 
 const categories = [
-  { value: 'Soutien scolaire', label: 'Soutien scolaire' },
   { value: 'Formation professionnelle', label: 'Formation professionnelle' },
+  { value: 'Soutien scolaire', label: 'Soutien scolaire' },
   { value: 'Développement personnel', label: 'Développement personnel' },
-  { value: 'Langues', label: 'Langues' },
-  { value: 'Cuisine', label: 'Cuisine' },
-  { value: 'Couture', label: 'Couture' },
-  { value: 'Informatique', label: 'Informatique' },
-  { value: 'Autre', label: 'Autre' },
 ];
 
 const courseTypes = [
@@ -401,46 +396,35 @@ export default function CourseForm({ open, onClose }: CourseFormProps) {
               />
             </Grid>
 
-            {/* Prix */}
-            <Grid item xs={12} sm={isIndividualType ? 6 : 12}>
+            {/* Prix selon la catégorie */}
+            <Grid item xs={12} sm={12}>
               <TextField
                 fullWidth
                 required
                 type="number"
                 label={
-                  isTutoringType
-                    ? isIndividualType
-                      ? 'Prix par mois (DA)'
-                      : 'Abonnement mensuel (DA)'
-                    : 'Prix total (DA)'
+                  formData.category === 'Formation professionnelle'
+                    ? 'Prix de la formation (DA)'
+                    : formData.category === 'Soutien scolaire'
+                    ? 'Prix par mois (DA)'
+                    : formData.category === 'Développement personnel'
+                    ? 'Prix par séance (DA)'
+                    : 'Prix (DA)'
                 }
                 value={formData.price}
                 onChange={(e) => handleChange('price', parseFloat(e.target.value))}
                 inputProps={{ min: 0, step: 100 }}
                 helperText={
-                  isGroupType
-                    ? 'Prix mensuel pour cours en groupe'
-                    : isIndividualType
-                    ? 'Abonnement mensuel pour cours individuels'
-                    : 'Prix total de la formation'
+                  formData.category === 'Formation professionnelle'
+                    ? 'Prix total de la formation'
+                    : formData.category === 'Soutien scolaire'
+                    ? 'Abonnement mensuel pour le soutien scolaire'
+                    : formData.category === 'Développement personnel'
+                    ? 'Prix pour une séance de développement personnel'
+                    : 'Montant à payer'
                 }
               />
             </Grid>
-
-            {/* Prix par séance (seulement pour cours individuels) */}
-            {isIndividualType && (
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Prix par séance (DA)"
-                  value={formData.pricePerSession}
-                  onChange={(e) => handleChange('pricePerSession', parseFloat(e.target.value))}
-                  inputProps={{ min: 0, step: 100 }}
-                  helperText="Prix pour une séance individuelle"
-                />
-              </Grid>
-            )}
 
             {/* Champs spécifiques pour cours de soutien */}
             {isTutoringType && (

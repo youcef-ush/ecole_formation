@@ -1,38 +1,40 @@
-
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
 import { Student } from "./Student.entity";
 import { Course } from "./Course.entity";
 
 export enum AccessStatus {
-    GRANTED = "GRANTED",
-    DENIED = "DENIED"
+  GRANTED = "GRANTED",
+  DENIED = "DENIED"
 }
 
 @Entity("access_logs")
 export class AccessLog {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column({ name: "student_id" })
-    studentId: number;
+  @Column({ name: "student_id", nullable: true })
+  studentId: number;
 
-    @ManyToOne(() => Student, { onDelete: "CASCADE" })
-    @JoinColumn({ name: "student_id" })
-    student: Student;
+  @ManyToOne(() => Student, (student) => student.accessLogs, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "student_id" })
+  student: Student;
 
-    @Column({ name: "course_id", nullable: true })
-    courseId: number;
+  @Column({ name: "course_id", nullable: true })
+  courseId: number;
 
-    @ManyToOne(() => Course, { onDelete: "SET NULL" })
-    @JoinColumn({ name: "course_id" })
-    course: Course;
+  @ManyToOne(() => Course)
+  @JoinColumn({ name: "course_id" })
+  course: Course;
 
-    @CreateDateColumn({ name: "scan_time" })
-    scanTime: Date;
+  @Column({ type: "enum", enum: AccessStatus })
+  status: AccessStatus;
 
-    @Column({ type: "enum", enum: AccessStatus })
-    status: AccessStatus;
+  @Column({ name: "denial_reason", type: "text", nullable: true })
+  denialReason: string;
 
-    @Column({ name: "denial_reason", nullable: true })
-    denialReason: string;
+  @Column({ type: "timestamp", name: "access_time", default: () => "CURRENT_TIMESTAMP" })
+  accessTime: Date;
+
+  @CreateDateColumn({ name: "created_at" })
+  createdAt: Date;
 }

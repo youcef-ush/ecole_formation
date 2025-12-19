@@ -3,7 +3,7 @@ import { Router, Response } from 'express';
 import { AppDataSource } from '../config/database.config';
 import { Student } from '../entities/Student.entity';
 import { Course } from '../entities/Course.entity';
-import { Enrollment, EnrollmentStatus } from '../entities/Enrollment.entity';
+import { Enrollment } from "../entities/Enrollment.entity";
 import { Payment } from '../entities/Payment.entity';
 import { AccessLog } from '../entities/AccessLog.entity'; // Replaces Attendance
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
@@ -26,11 +26,11 @@ router.get('/stats', async (req: AuthRequest, res: Response, next) => {
     const totalStudents = await studentRepo.count();
 
     // Nombre de formations actives
-    const activeCourses = await courseRepo.count({ where: { isActive: true } });
+    const activeCourses = await courseRepo.count();
 
-    // Nombre d'inscriptions actives
+    // Nombre d'inscriptions (paid enrollments)
     const activeEnrollments = await enrollmentRepo.count({
-      where: { status: EnrollmentStatus.ACTIVE }
+      where: { isRegistrationFeePaid: true }
     });
 
     // Revenus totaux (somme des paiements)
@@ -72,8 +72,9 @@ router.get('/attendance-stats', async (req: AuthRequest, res: Response, next) =>
     });
 
     // Total Granted vs Denied (All time or recent)
-    const grantedCount = await logRepo.count({ where: { status: "GRANTED" as any } });
-    const deniedCount = await logRepo.count({ where: { status: "DENIED" as any } });
+    const { AccessStatus } = await import("../entities/AccessLog.entity");
+    const grantedCount = await logRepo.count({ where: { status: AccessStatus.GRANTED } });
+    const deniedCount = await logRepo.count({ where: { status: AccessStatus.DENIED } });
 
     res.json({
       success: true,

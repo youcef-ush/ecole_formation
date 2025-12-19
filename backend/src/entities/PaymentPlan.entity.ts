@@ -1,24 +1,32 @@
-
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
-import { Enrollment } from "./Enrollment.entity";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn, CreateDateColumn } from "typeorm";
+import { Student } from "./Student.entity";
+import { Installment } from "./Installment.entity";
 
 @Entity("payment_plans")
 export class PaymentPlan {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column()
-    name: string;
+  @Column({ name: "student_id" })
+  studentId: number;
 
-    @Column({ name: "installments_count" })
-    installmentsCount: number;
+  @ManyToOne(() => Student, (student) => student.paymentPlan)
+  @JoinColumn({ name: "student_id" })
+  student: Student;
 
-    @Column({ name: "interval_days" })
-    intervalDays: number;
+  @Column({ type: "decimal", precision: 10, scale: 2, name: "total_amount" })
+  totalAmount: number;
 
-    @Column({ type: "text", nullable: true })
-    description: string;
+  @Column({ name: "number_of_installments" })
+  numberOfInstallments: number;
 
-    @OneToMany(() => Enrollment, (enrollment) => enrollment.paymentPlan)
-    enrollments: Enrollment[];
+  @CreateDateColumn({ name: "created_at" })
+  createdAt: Date;
+
+  // Relations
+  @OneToMany(() => Installment, (installment) => installment.paymentPlan)
+  installments: Installment[];
+
+  @OneToMany(() => Student, (student) => student.paymentPlan)
+  students: Student[];
 }
