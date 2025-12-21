@@ -5,11 +5,13 @@ import { Student, StudentStatus } from "../entities/Student.entity";
 import { Course } from "../entities/Course.entity";
 import { Enrollment } from "../entities/Enrollment.entity";
 import { Installment, InstallmentStatus } from "../entities/Installment.entity";
+import { StudentAssignment } from "../entities/StudentAssignment.entity";
 
 export class AccessService {
     private logRepo = AppDataSource.getRepository(AccessLog);
     private studentRepo = AppDataSource.getRepository(Student);
     private installmentRepo = AppDataSource.getRepository(Installment);
+    private studentAssignmentRepo = AppDataSource.getRepository(StudentAssignment);
 
     async scan(qrCode: string, courseId: number) {
         console.log(`[AccessService] Scan request - QR: "${qrCode}", CourseID: ${courseId}`);
@@ -17,7 +19,7 @@ export class AccessService {
         // 1. Identify Student
         const student = await this.studentRepo.findOne({ 
             where: { qrCode },
-            relations: ['enrollment', 'course', 'paymentPlan']
+            relations: ['enrollment', 'course', 'studentPaymentPlans']
         });
 
         if (!student) {
@@ -54,14 +56,19 @@ export class AccessService {
         }
 
         // 4. CHECK FINANCE: Vérifier les échéances impayées
-        if (student.paymentPlanId) {
-            const overdueInstallments = await this.installmentRepo.find({
-                where: {
-                    paymentPlanId: student.paymentPlanId,
-                    status: InstallmentStatus.PENDING
-                },
-                order: { dueDate: 'ASC' }
-            });
+        const activeAssignments = await this.studentAssignmentRepo.find({
+            where: { studentId: student.id },
+            relations: ['installments']
+        });
+
+        if (activeAssignments.length > 0) {
+            const allInstallments = activeAssignments.flatMap(assignment =>
+                assignment.installments || []
+            );
+
+            const overdueInstallments = allInstallments.filter(inst =>
+                inst.status === InstallmentStatus.PENDING
+            );
 
             const today = new Date();
             const actuallyOverdue = overdueInstallments.filter(inst => {

@@ -3,7 +3,6 @@ import { Enrollment } from "../entities/Enrollment.entity";
 import { Student, StudentStatus } from "../entities/Student.entity";
 import { Course } from "../entities/Course.entity";
 import { Payment, PaymentType } from "../entities/Payment.entity";
-import { PaymentPlan } from "../entities/PaymentPlan.entity";
 import { Installment, InstallmentStatus } from "../entities/Installment.entity";
 import { QrCodeService } from "./qrcode.service";
 
@@ -12,7 +11,6 @@ export class EnrollmentService {
     private studentRepo = AppDataSource.getRepository(Student);
     private courseRepo = AppDataSource.getRepository(Course);
     private paymentRepo = AppDataSource.getRepository(Payment);
-    private planRepo = AppDataSource.getRepository(PaymentPlan);
     private installmentRepo = AppDataSource.getRepository(Installment);
     private qrCodeService = new QrCodeService();
 
@@ -193,53 +191,5 @@ export class EnrollmentService {
 
         await this.enrollmentRepo.remove(enrollment);
         return { message: "Enrollment deleted successfully" };
-    }
-
-    /**
-     * Créer un plan de paiement pour un étudiant
-     */
-    async createPaymentPlan(studentId: number, totalAmount: number, numberOfInstallments: number) {
-        const student = await this.studentRepo.findOne({ where: { id: studentId } });
-        if (!student) {
-            throw new Error("Student not found");
-        }
-
-        return await AppDataSource.manager.transaction(async (manager) => {
-            // Créer le plan de paiement
-            const plan = manager.create(PaymentPlan, {
-                studentId: studentId,
-                totalAmount: totalAmount,
-                numberOfInstallments: numberOfInstallments
-            });
-
-            const savedPlan = await manager.save(PaymentPlan, plan);
-
-            // Générer les échéances
-            const installmentAmount = totalAmount / numberOfInstallments;
-            const installments: Installment[] = [];
-
-            for (let i = 0; i < numberOfInstallments; i++) {
-                const dueDate = new Date();
-                dueDate.setMonth(dueDate.getMonth() + i + 1); // Chaque mois
-
-                const installment = manager.create(Installment, {
-                    paymentPlanId: savedPlan.id,
-                    installmentNumber: i + 1,
-                    amount: installmentAmount,
-                    dueDate: dueDate.toISOString().split('T')[0],
-                    status: InstallmentStatus.PENDING
-                });
-
-                installments.push(installment);
-            }
-
-            await manager.save(Installment, installments);
-
-            // Lier le plan à l'étudiant
-            student.paymentPlanId = savedPlan.id;
-            await manager.save(Student, student);
-
-            return { plan: savedPlan, installments };
-        });
     }
 }

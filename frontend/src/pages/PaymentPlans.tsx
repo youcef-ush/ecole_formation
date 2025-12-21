@@ -56,14 +56,17 @@ export default function PaymentPlans() {
             const response = await api.get('/payment-plans');
             setPaymentPlans(response.data.data || []);
             setError(null);
-        } catch (err) {
-            setError('Erreur lors du chargement des plans de paiement');
+        } catch (err: any) {
+            console.error('Erreur lors du chargement des plans de paiement:', err);
+            setError('Erreur lors du chargement des plans de paiement: ' + (err.response?.data?.message || err.message));
+            setPaymentPlans([]); // Assurer que paymentPlans est un tableau vide en cas d'erreur
         } finally {
             setLoading(false);
         }
     };
 
     const handleOpenDialog = (plan?: PaymentPlan) => {
+        console.log('handleOpenDialog called with plan:', plan);
         if (plan) {
             setEditingPlan(plan);
             setName(plan.name);
@@ -77,6 +80,7 @@ export default function PaymentPlans() {
             setIntervalDays(30);
             setDescription('');
         }
+        console.log('Setting openDialog to true');
         setOpenDialog(true);
     };
 
@@ -91,12 +95,31 @@ export default function PaymentPlans() {
 
     const handleSubmit = async () => {
         try {
+            setError(null);
+            setSuccess(null);
+
             const planData = {
-                name,
+                name: name.trim(),
                 installmentsCount,
                 intervalDays,
-                description: description || null,
+                description: description.trim() || null,
             };
+
+            // Validation côté client
+            if (!planData.name) {
+                setError('Le nom du plan est obligatoire');
+                return;
+            }
+
+            if (planData.installmentsCount < 1) {
+                setError('Le nombre d\'échéances doit être au moins 1');
+                return;
+            }
+
+            if (planData.intervalDays < 1) {
+                setError('L\'intervalle entre échéances doit être au moins 1 jour');
+                return;
+            }
 
             if (editingPlan) {
                 await api.put(`/payment-plans/${editingPlan.id}`, planData);
@@ -109,7 +132,9 @@ export default function PaymentPlans() {
             handleCloseDialog();
             loadPaymentPlans();
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Erreur lors de la sauvegarde');
+            console.error('Erreur lors de la sauvegarde:', err);
+            const errorMessage = err.response?.data?.message || err.message || 'Erreur lors de la sauvegarde du plan de paiement';
+            setError(errorMessage);
         }
     };
 
@@ -175,7 +200,7 @@ export default function PaymentPlans() {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {paymentPlans.map((plan) => (
+                            {Array.isArray(paymentPlans) && paymentPlans.map((plan) => (
                                 <TableRow key={plan.id}>
                                     <TableCell>{plan.name}</TableCell>
                                     <TableCell>
@@ -199,7 +224,7 @@ export default function PaymentPlans() {
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {paymentPlans.length === 0 && (
+                            {Array.isArray(paymentPlans) && paymentPlans.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={5} align="center">
                                         Aucun plan de paiement trouvé
@@ -212,61 +237,79 @@ export default function PaymentPlans() {
             </Card>
 
             {/* Dialog for creating/editing payment plans */}
-            <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-                <DialogTitle>
-                    {editingPlan ? 'Modifier le Plan de Paiement' : 'Nouveau Plan de Paiement'}
-                </DialogTitle>
-                <DialogContent>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Nom du plan"
-                        fullWidth
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                    />
-                    <TextField
-                        margin="dense"
-                        label="Nombre d'échéances"
-                        type="number"
-                        fullWidth
-                        value={installmentsCount}
-                        onChange={(e) => setInstallmentsCount(parseInt(e.target.value) || 1)}
-                        inputProps={{ min: 1 }}
-                        required
-                    />
-                    <TextField
-                        margin="dense"
-                        label="Intervalle (jours)"
-                        type="number"
-                        fullWidth
-                        value={intervalDays}
-                        onChange={(e) => setIntervalDays(parseInt(e.target.value) || 1)}
-                        inputProps={{ min: 1 }}
-                        required
-                    />
-                    <TextField
-                        margin="dense"
-                        label="Description"
-                        fullWidth
-                        multiline
-                        rows={3}
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseDialog}>Annuler</Button>
-                    <Button
-                        onClick={handleSubmit}
-                        variant="contained"
-                        disabled={!name || !installmentsCount || !intervalDays}
-                    >
-                        {editingPlan ? 'Modifier' : 'Créer'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            {console.log('Rendering dialog, openDialog:', openDialog)}
+            {openDialog && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000
+                }}>
+                    <div style={{
+                        backgroundColor: 'white',
+                        padding: '20px',
+                        borderRadius: '8px',
+                        minWidth: '400px',
+                        maxWidth: '500px'
+                    }}>
+                        <h2>{editingPlan ? 'Modifier le Plan de Paiement' : 'Nouveau Plan de Paiement'}</h2>
+                        <div style={{ marginBottom: '10px' }}>
+                            <label>Nom du plan:</label>
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                style={{ width: '100%', padding: '8px', marginTop: '4px' }}
+                            />
+                        </div>
+                        <div style={{ marginBottom: '10px' }}>
+                            <label>Nombre d'échéances:</label>
+                            <input
+                                type="number"
+                                value={installmentsCount}
+                                onChange={(e) => setInstallmentsCount(parseInt(e.target.value) || 1)}
+                                min="1"
+                                style={{ width: '100%', padding: '8px', marginTop: '4px' }}
+                            />
+                        </div>
+                        <div style={{ marginBottom: '10px' }}>
+                            <label>Intervalle (jours):</label>
+                            <input
+                                type="number"
+                                value={intervalDays}
+                                onChange={(e) => setIntervalDays(parseInt(e.target.value) || 30)}
+                                min="1"
+                                style={{ width: '100%', padding: '8px', marginTop: '4px' }}
+                            />
+                        </div>
+                        <div style={{ marginBottom: '20px' }}>
+                            <label>Description:</label>
+                            <textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                rows={3}
+                                style={{ width: '100%', padding: '8px', marginTop: '4px' }}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <button onClick={handleCloseDialog}>Annuler</button>
+                            <button
+                                onClick={handleSubmit}
+                                style={{ backgroundColor: '#1976d2', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '4px' }}
+                                disabled={!name || !installmentsCount || !intervalDays}
+                            >
+                                {editingPlan ? 'Modifier' : 'Créer'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Box>
     );
 }

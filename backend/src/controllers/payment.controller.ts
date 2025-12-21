@@ -7,14 +7,14 @@ export class PaymentController {
 
     create = async (req: Request, res: Response) => {
         try {
-            const { enrollmentId, amount, method, note } = req.body;
+            const { installmentId, amount, method, note } = req.body;
 
-            if (!enrollmentId || !amount) {
-                return res.status(400).json({ message: "Enrollment ID and Amount are required" });
+            if (!installmentId || !amount) {
+                return res.status(400).json({ message: "Installment ID and Amount are required" });
             }
 
-            const result = await this.paymentService.processPayment(
-                Number(enrollmentId),
+            const result = await this.paymentService.processInstallmentPayment(
+                Number(installmentId),
                 Number(amount),
                 method || "CASH",
                 note

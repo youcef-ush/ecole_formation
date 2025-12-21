@@ -1,9 +1,10 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, OneToOne, JoinColumn, CreateDateColumn } from "typeorm";
 import { Enrollment } from "./Enrollment.entity";
 import { Course } from "./Course.entity";
-import { PaymentPlan } from "./PaymentPlan.entity";
 import { Payment } from "./Payment.entity";
 import { AccessLog } from "./AccessLog.entity";
+import { StudentPaymentPlan } from "./StudentPaymentPlan.entity";
+import { StudentAssignment } from "./StudentAssignment.entity";
 
 export enum StudentStatus {
   PENDING = "PENDING",
@@ -48,14 +49,6 @@ export class Student {
   @JoinColumn({ name: "course_id" })
   course: Course;
 
-  // Plan de paiement (optionnel)
-  @Column({ name: "payment_plan_id", nullable: true })
-  paymentPlanId: number;
-
-  @ManyToOne(() => PaymentPlan, (plan) => plan.students, { nullable: true })
-  @JoinColumn({ name: "payment_plan_id" })
-  paymentPlan: PaymentPlan;
-
   @CreateDateColumn({ name: "created_at" })
   createdAt: Date;
 
@@ -65,4 +58,10 @@ export class Student {
 
   @OneToMany(() => AccessLog, (log) => log.student)
   accessLogs: AccessLog[];
+
+  @OneToMany(() => StudentPaymentPlan, (spp) => spp.student)
+  studentPaymentPlans: StudentPaymentPlan[];
+
+  @OneToMany(() => StudentAssignment, (assignment) => assignment.student)
+  studentAssignments: StudentAssignment[];
 }

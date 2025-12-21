@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn, CreateDateColumn } from "typeorm";
 import { Trainer } from "./Trainer.entity";
 import { Student } from "./Student.entity";
+import { StudentAssignment } from "./StudentAssignment.entity";
 
 export enum CourseType {
   ABONNEMENT = "ABONNEMENT",
@@ -63,4 +64,7 @@ export class Course {
   // Relations
   @OneToMany(() => Student, (student) => student.course)
   students: Student[];
+
+  @OneToMany(() => StudentAssignment, (assignment) => assignment.course)
+  studentAssignments: StudentAssignment[];
 }

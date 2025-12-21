@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
-import { PaymentPlan } from "./PaymentPlan.entity";
+import { StudentAssignment } from "./StudentAssignment.entity";
 
 export enum InstallmentStatus {
   PENDING = "PENDING",
@@ -12,12 +12,12 @@ export class Installment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: "payment_plan_id" })
-  paymentPlanId: number;
+  @Column({ name: "student_assignment_id" })
+  studentAssignmentId: number;
 
-  @ManyToOne(() => PaymentPlan, (plan) => plan.installments, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "payment_plan_id" })
-  paymentPlan: PaymentPlan;
+  @ManyToOne(() => StudentAssignment, (assignment) => assignment.installments, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "student_assignment_id" })
+  studentAssignment: StudentAssignment;
 
   @Column({ name: "installment_number" })
   installmentNumber: number;

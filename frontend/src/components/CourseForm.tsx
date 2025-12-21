@@ -247,8 +247,6 @@ export default function CourseForm({ open, onClose }: CourseFormProps) {
   };
 
   const isTutoringType = formData.type.includes('Soutien Scolaire');
-  const isGroupType = formData.type === 'Soutien Scolaire (Groupe)';
-  const isIndividualType = formData.type === 'Soutien Scolaire (Individuel)';
 
   return (
     <>

@@ -130,13 +130,6 @@ export default function Enrollments() {
     setSelectedCourseIds([]);
   };
 
-  const handleCourseChange = (courseId: number) => {
-    setFormData({
-      ...formData,
-      courseId,
-    });
-  };
-
   const handleSubmit = async () => {
     // Validation
     if (!formData.firstName || !formData.lastName || !formData.phone) {

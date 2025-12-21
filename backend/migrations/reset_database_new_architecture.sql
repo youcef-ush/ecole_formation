@@ -123,7 +123,7 @@ FOREIGN KEY (payment_plan_id) REFERENCES payment_plans(id) ON DELETE SET NULL;
 -- Table: installments (Échéances)
 CREATE TABLE installments (
   id SERIAL PRIMARY KEY,
-  payment_plan_id INTEGER NOT NULL REFERENCES payment_plans(id) ON DELETE CASCADE,
+  student_assignment_id INTEGER NOT NULL REFERENCES student_assignments(id) ON DELETE CASCADE,
   installment_number INTEGER NOT NULL,
   amount DECIMAL(10, 2) NOT NULL,
   due_date DATE NOT NULL,
