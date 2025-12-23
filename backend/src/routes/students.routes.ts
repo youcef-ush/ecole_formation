@@ -26,7 +26,15 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
     const paymentRepo = AppDataSource.getRepository(Payment);
 
     const students = await studentRepo.find({
-      relations: ['enrollment', 'course', 'studentPaymentPlans', 'studentPaymentPlans.paymentPlan'],
+      relations: [
+        'enrollment', 
+        'course', 
+        'studentPaymentPlans', 
+        'studentPaymentPlans.paymentPlan',
+        'studentAssignments',
+        'studentAssignments.course',
+        'studentAssignments.paymentPlan'
+      ],
       order: { createdAt: 'DESC' },
     });
 
@@ -190,7 +198,16 @@ router.get('/:id', async (req: AuthRequest, res: Response, next) => {
 
     const student = await studentRepo.findOne({
       where: { id: parseInt(id) },
-      relations: ['enrollment', 'course', 'studentPaymentPlans', 'studentPaymentPlans.paymentPlan'],
+      relations: [
+        'enrollment', 
+        'course', 
+        'studentPaymentPlans', 
+        'studentPaymentPlans.paymentPlan',
+        'studentAssignments',
+        'studentAssignments.course',
+        'studentAssignments.paymentPlan',
+        'studentAssignments.installments'
+      ],
     });
 
     if (!student) {
