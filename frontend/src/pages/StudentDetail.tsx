@@ -58,6 +58,28 @@ interface Student {
     durationMonths?: number;
     price?: string;
   };
+  studentAssignments?: Array<{
+    id: number;
+    courseId: number;
+    paymentPlanId: number;
+    status: string;
+    course: {
+      id: number;
+      title: string;
+      category?: string;
+      type?: string;
+    };
+    paymentPlan: {
+      id: number;
+      name: string;
+    };
+    installments: Array<{
+      id: number;
+      dueDate: string;
+      amount: number;
+      status: string;
+    }>;
+  }>;
   paymentPlan?: any;
   payments?: any[];
   accessLogs?: any[];
@@ -256,92 +278,119 @@ export default function StudentDetail() {
           </Paper>
         </Grid>
 
-        {/* Formations inscrites */}
+        {/* Formations et Affectations */}
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <School /> Formation inscrite
+              <School /> Affectations aux formations
             </Typography>
 
-            {student.course ? (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="body1" fontWeight={600} gutterBottom>
-                  {student.course.title}
-                </Typography>
-                {student.course.description && (
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    {student.course.description}
-                  </Typography>
-                )}
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={6}>
-                    <Typography variant="caption" color="text.secondary">
-                      Catégorie
-                    </Typography>
-                    <Chip
-                      label={student.course.category || 'Non défini'}
-                      size="small"
-                      color="primary"
-                      sx={{ display: 'block', mt: 0.5 }}
-                    />
-                  </Grid>
-                  {student.course.type && (
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Type
+            {student.studentAssignments && student.studentAssignments.length > 0 ? (
+              student.studentAssignments.map((assignment, index) => {
+                const nextInst = (assignment.installments || [])
+                  .filter(i => i.status !== 'PAID')
+                  .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0];
+
+                return (
+                  <Box key={assignment.id} sx={{ mt: index > 0 ? 4 : 2 }}>
+                    {index > 0 && <Divider sx={{ mb: 3 }} />}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <Typography variant="body1" fontWeight={700} color="primary">
+                        {assignment.course?.title}
                       </Typography>
                       <Chip
-                        label={student.course.type}
+                        label={assignment.status}
                         size="small"
-                        variant="outlined"
-                        sx={{ display: 'block', mt: 0.5 }}
+                        color={assignment.status === 'ACTIVE' ? 'success' : 'default'}
                       />
+                    </Box>
+
+                    <Grid container spacing={2} sx={{ mt: 1 }}>
+                      <Grid item xs={6} sm={4}>
+                        <Typography variant="caption" color="text.secondary">Plan de paiement</Typography>
+                        <Typography variant="body2" fontWeight={600}>{assignment.paymentPlan?.name}</Typography>
+                      </Grid>
+                      
+                      <Grid item xs={6} sm={4}>
+                        <Typography variant="caption" color="text.secondary">Prochaine échéance</Typography>
+                        {nextInst ? (
+                          <Box>
+                            <Typography variant="body2" color="error.main" fontWeight={700}>
+                              {new Date(nextInst.dueDate).toLocaleDateString('fr-FR')}
+                            </Typography>
+                            <Typography variant="caption">{nextInst.amount} DA</Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="body2" color="success.main">À jour</Typography>
+                        )}
+                      </Grid>
+
+                      <Grid item xs={6} sm={4}>
+                        <Typography variant="caption" color="text.secondary">Catégorie / Type</Typography>
+                        <Typography variant="body2">
+                          {assignment.course?.category || '-'} / {assignment.course?.type || '-'}
+                        </Typography>
+                      </Grid>
                     </Grid>
-                  )}
-                  {student.course.durationMonths && (
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Durée
+
+                    {/* Liste des échéances pour cette affectation */}
+                    <Box sx={{ mt: 2, bgcolor: '#f8f9fa', p: 2, borderRadius: 1 }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.8rem', fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
+                        Échéancier de paiement
                       </Typography>
-                      <Typography variant="body2">
-                        {student.course.durationMonths} mois
-                      </Typography>
-                    </Grid>
-                  )}
-                  {student.course.price && (
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Prix
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600}>
-                        {parseFloat(student.course.price).toLocaleString('fr-FR')} DA
-                      </Typography>
-                    </Grid>
-                  )}
+                      <Grid container spacing={1}>
+                        {(assignment.installments || [])
+                          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+                          .map((inst, iIdx) => (
+                            <Grid item xs={12} sm={6} key={inst.id}>
+                              <Box sx={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center',
+                                p: 1,
+                                border: '1px solid',
+                                borderColor: inst.status === 'PAID' ? 'success.light' : 'divider',
+                                borderRadius: 1,
+                                bgcolor: inst.status === 'PAID' ? 'success.50' : 'white'
+                              }}>
+                                <Box>
+                                  <Typography variant="caption" display="block" color="text.secondary">
+                                    Échéance {iIdx + 1} - {new Date(inst.dueDate).toLocaleDateString('fr-FR')}
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {inst.amount.toLocaleString('fr-FR')} DA
+                                  </Typography>
+                                </Box>
+                                <Chip 
+                                  label={inst.status === 'PAID' ? 'Payé' : 'En attente'} 
+                                  size="small" 
+                                  color={inst.status === 'PAID' ? 'success' : 'warning'}
+                                  variant={inst.status === 'PAID' ? 'filled' : 'outlined'}
+                                  sx={{ height: 20, fontSize: '0.65rem' }}
+                                />
+                              </Box>
+                            </Grid>
+                          ))}
+                      </Grid>
+                    </Box>
+                  </Box>
+                );
+              })
+            ) : student.course ? (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body1" fontWeight={600} gutterBottom>
+                  {student.course.title} (Inscription initiale)
+                </Typography>
+                <Grid container spacing={2}>
                   <Grid item xs={6}>
-                    <Typography variant="caption" color="text.secondary">
-                      Date d'inscription
-                    </Typography>
-                    <Typography variant="body2">
-                      {new Date(student.enrollment.createdAt).toLocaleDateString('fr-FR')}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="caption" color="text.secondary">
-                      Statut
-                    </Typography>
-                    <Chip
-                      label={student.status}
-                      size="small"
-                      color={student.status === 'ACTIVE' ? 'success' : 'default'}
-                      sx={{ display: 'block', mt: 0.5 }}
-                    />
+                    <Typography variant="caption" color="text.secondary">Statut</Typography>
+                    <Chip label={student.status} size="small" color="info" sx={{ display: 'block', mt: 0.5 }} />
                   </Grid>
                 </Grid>
               </Box>
             ) : (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Aucune formation enregistrée
+                Aucune affectation trouvée
               </Typography>
             )}
           </Paper>
@@ -491,18 +540,25 @@ function BadgeCard({
           )}
         </Box>
 
-        {/* Formation inscrite */}
+        {/* Formations inscrites */}
         <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle2" fontWeight="bold" sx={{ fontSize: '0.9rem', mb: 1, pb: 0.5, borderBottom: '2px solid #000' }}>
-            📖 Formation inscrite
+            📖 Formations
           </Typography>
-          {student.course ? (
+          {student.studentAssignments && student.studentAssignments.length > 0 ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {student.studentAssignments.map((assignment) => (
+                <Box key={assignment.id} sx={{ bgcolor: '#f5f5f5', p: 1, borderRadius: 1, border: '1px solid #ddd' }}>
+                  <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8rem' }}>
+                    {assignment.course?.title}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          ) : student.course ? (
             <Box sx={{ bgcolor: '#f5f5f5', p: 1.5, borderRadius: 1, border: '1px solid #ddd' }}>
               <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.9rem', mb: 0.5 }}>
                 {student.course.title}
-              </Typography>
-              <Typography variant="caption" sx={{ fontSize: '0.75rem', display: 'block' }}>
-                <strong>Inscrit le:</strong> {new Date(student.enrollment.createdAt).toLocaleDateString('fr-FR')}
               </Typography>
             </Box>
           ) : (

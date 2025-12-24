@@ -3,17 +3,23 @@ import { createTheme } from '@mui/material/styles'
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2',
-      light: '#42a5f5',
-      dark: '#1565c0',
+      main: '#2E3192', // Bleu profond (Inspired Academy)
+      light: '#4449C1',
+      dark: '#1B1D56',
     },
     secondary: {
-      main: '#dc004e',
-      light: '#ff5983',
-      dark: '#9a0036',
+      main: '#00AEEF', // Bleu clair / Cyan
+      light: '#33BEF2',
+      dark: '#0079A6',
+    },
+    success: {
+      main: '#00A651', // Vert Inspired
+    },
+    error: {
+      main: '#ED1C24', // Rouge Inspired
     },
     background: {
-      default: '#f5f5f5',
+      default: '#F1F2F2',
       paper: '#ffffff',
     },
   },

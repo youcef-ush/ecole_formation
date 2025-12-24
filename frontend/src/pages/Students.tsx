@@ -23,6 +23,11 @@ import {
   InputAdornment,
   Snackbar,
   Alert,
+  TableSortLabel,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import api from '../services/api'
@@ -75,6 +80,20 @@ interface Student {
       description?: string
     }
   }>
+  studentAssignments?: Array<{
+    id: number
+    courseId: number
+    paymentPlanId: number
+    status: string
+    course: {
+      id: number
+      title: string
+    }
+    paymentPlan: {
+      id: number
+      name: string
+    }
+  }>
   // Aliases pour compatibilité
   firstName?: string
   lastName?: string
@@ -91,6 +110,13 @@ export default function Students() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
+  const [formationFilter, setFormationFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [dateFilter, setDateFilter] = useState<string>('')
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
+    key: 'id',
+    direction: 'desc',
+  })
   const [openDetails, setOpenDetails] = useState(false)
   const [openEdit, setOpenEdit] = useState(false)
   const [openAffectationDialog, setOpenAffectationDialog] = useState(false)
@@ -150,25 +176,75 @@ export default function Students() {
     enabled: !!selectedStudent?.id && openDetails,
   })
 
-  // Filtrer les étudiants par recherche
-  const filteredStudents = students?.filter((student) => {
-    if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
-    return (
-      student.enrollment?.firstName?.toLowerCase().includes(query) ||
-      student.enrollment?.lastName?.toLowerCase().includes(query) ||
-      student.enrollment?.email?.toLowerCase().includes(query) ||
-      student.enrollment?.phone?.toLowerCase().includes(query)
-    )
-  }) || []
-
   // Fonction pour obtenir la formation de l'étudiant
   const getStudentCourse = (student: Student): string => {
+    if (student.studentAssignments && student.studentAssignments.length > 0) {
+      return student.studentAssignments.map(a => a.course?.title).filter(Boolean).join(', ')
+    }
     return student.course?.title || student.enrollment?.courseTitle || 'Sans formation'
+  }
+
+  // Filtrer et trier les étudiants
+  const filteredStudents = (students || [])
+    .filter((student) => {
+      // Filtre par recherche textuelle
+      const query = searchQuery.toLowerCase()
+      const matchesSearch = !searchQuery || (
+        student.enrollment?.firstName?.toLowerCase().includes(query) ||
+        student.enrollment?.lastName?.toLowerCase().includes(query) ||
+        student.enrollment?.email?.toLowerCase().includes(query) ||
+        student.enrollment?.phone?.toLowerCase().includes(query)
+      )
+
+      // Filtre par formation
+      const matchesFormation = formationFilter === 'all' || 
+        (student.studentAssignments?.some(a => a.courseId.toString() === formationFilter)) ||
+        (student.courseId?.toString() === formationFilter)
+
+      // Filtre par statut
+      const matchesStatus = statusFilter === 'all' || student.status === statusFilter
+
+      // Filtre par date
+      const matchesDate = !dateFilter || new Date(student.createdAt).toISOString().split('T')[0] === dateFilter
+
+      return matchesSearch && matchesFormation && matchesStatus && matchesDate
+    })
+    .sort((a, b) => {
+      const { key, direction } = sortConfig
+      let valA: any = ''
+      let valB: any = ''
+
+      if (key === 'id') {
+        valA = a.id
+        valB = b.id
+      } else if (key === 'name') {
+        valA = `${a.enrollment?.firstName} ${a.enrollment?.lastName}`.toLowerCase()
+        valB = `${b.enrollment?.firstName} ${b.enrollment?.lastName}`.toLowerCase()
+      } else if (key === 'course') {
+        valA = getStudentCourse(a).toLowerCase()
+        valB = getStudentCourse(b).toLowerCase()
+      } else if (key === 'nextInstallment') {
+        valA = a.nextInstallment?.dueDate ? new Date(a.nextInstallment.dueDate).getTime() : Infinity
+        valB = b.nextInstallment?.dueDate ? new Date(b.nextInstallment.dueDate).getTime() : Infinity
+      }
+
+      if (valA < valB) return direction === 'asc' ? -1 : 1
+      if (valA > valB) return direction === 'asc' ? 1 : -1
+      return 0
+    })
+
+  const handleSort = (key: string) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }))
   }
 
   // Fonction pour obtenir le plan de paiement de l'étudiant
   const getStudentPaymentPlan = (student: Student): string => {
+    if (student.studentAssignments && student.studentAssignments.length > 0) {
+      return student.studentAssignments.map(a => a.paymentPlan?.name).filter(Boolean).join(', ')
+    }
     if (student.studentPaymentPlans && student.studentPaymentPlans.length > 0) {
       const activePlan = student.studentPaymentPlans.find(plan => plan.status === 'ACTIVE')
       if (activePlan && activePlan.paymentPlan) {
@@ -273,36 +349,112 @@ export default function Students() {
         </Box>
       </Box>
 
-      {/* Barre de recherche */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <TextField
-          fullWidth
-          placeholder="Rechercher par nom, email ou téléphone..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon color="action" />
-              </InputAdornment>
-            ),
-          }}
-        />
+      {/* Barre de recherche et Filtres */}
+      <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Rechercher par nom, email ou téléphone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Statut</InputLabel>
+              <Select
+                value={statusFilter}
+                label="Statut"
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <MenuItem value="all">Tous les statuts</MenuItem>
+                <MenuItem value="ACTIVE">Actif</MenuItem>
+                <MenuItem value="INACTIVE">Inactif</MenuItem>
+                <MenuItem value="COMPLETED">Terminé</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={6} md={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Filtrer par Formation</InputLabel>
+              <Select
+                value={formationFilter}
+                label="Filtrer par Formation"
+                onChange={(e) => setFormationFilter(e.target.value)}
+              >
+                <MenuItem value="all">Toutes les formations</MenuItem>
+                {courses?.map((course: any) => (
+                  <MenuItem key={course.id} value={course.id.toString()}>
+                    {course.title}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth
+              size="small"
+              type="date"
+              label="Date d'inscription"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+        </Grid>
       </Paper>
 
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Nom complet</TableCell>
-              <TableCell>Téléphone</TableCell>
-              <TableCell>Formation</TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortConfig.key === 'id'}
+                  direction={sortConfig.key === 'id' ? sortConfig.direction : 'asc'}
+                  onClick={() => handleSort('id')}
+                >
+                  ID
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortConfig.key === 'name'}
+                  direction={sortConfig.key === 'name' ? sortConfig.direction : 'asc'}
+                  onClick={() => handleSort('name')}
+                >
+                  Nom complet
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortConfig.key === 'course'}
+                  direction={sortConfig.key === 'course' ? sortConfig.direction : 'asc'}
+                  onClick={() => handleSort('course')}
+                >
+                  Formation
+                </TableSortLabel>
+              </TableCell>
               <TableCell>Plan de paiement</TableCell>
-              <TableCell>Total Payé</TableCell>
-              <TableCell>Prochaine Échéance</TableCell>
-              <TableCell>QR Code</TableCell>
-              <TableCell>Statut</TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortConfig.key === 'nextInstallment'}
+                  direction={sortConfig.key === 'nextInstallment' ? sortConfig.direction : 'asc'}
+                  onClick={() => handleSort('nextInstallment')}
+                >
+                  Prochaine Échéance
+                </TableSortLabel>
+              </TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -319,7 +471,6 @@ export default function Students() {
                   <TableCell>
                     {student.enrollment?.firstName} {student.enrollment?.lastName}
                   </TableCell>
-                  <TableCell>{student.enrollment?.phone}</TableCell>
                   <TableCell>
                     <Chip
                       label={getStudentCourse(student)}
@@ -337,11 +488,6 @@ export default function Students() {
                     />
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" fontWeight={600} color="success.main">
-                      {student.totalPaid ? `${student.totalPaid} DA` : '0 DA'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
                     {student.nextInstallment ? (
                       <Box>
                         <Typography variant="body2" fontWeight={600} color="error.main">
@@ -354,14 +500,6 @@ export default function Students() {
                     ) : (
                       <Chip label="À jour" color="success" size="small" variant="outlined" />
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                      {student.qrCode || 'N/A'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip label="Actif" color="success" size="small" />
                   </TableCell>
                   <TableCell>
                     <Box display="flex" gap={1}>
@@ -383,7 +521,7 @@ export default function Students() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={6} align="center">
                   Aucun étudiant trouvé
                 </TableCell>
               </TableRow>

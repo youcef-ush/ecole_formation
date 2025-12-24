@@ -21,8 +21,13 @@ import {
   MenuItem,
   Grid,
   CircularProgress,
+  TableSortLabel,
+  InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
-import { Add, CheckCircle, Delete, Edit } from '@mui/icons-material';
+import { Add, CheckCircle, Delete, Edit, Search } from '@mui/icons-material';
 import api from '../services/api';
 import { enrollmentService, Enrollment, CreateEnrollmentData } from '../services/enrollmentService';
 import { generateInvoice, generateInvoiceNumber, InvoiceData } from '../utils/invoiceGenerator';
@@ -41,6 +46,16 @@ export default function Enrollments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Search and Sort state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [courseFilter, setCourseFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Enrollment | 'courseTitle'; direction: 'asc' | 'desc' }>({
+    key: 'createdAt',
+    direction: 'desc',
+  });
 
   // Dialog state
   const [openDialog, setOpenDialog] = useState(false);
@@ -84,6 +99,48 @@ export default function Enrollments() {
       setLoading(false);
     }
   };
+
+  const handleSort = (key: keyof Enrollment | 'courseTitle') => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const filteredAndSortedEnrollments = enrollments
+    .filter((e) => {
+      const searchStr = `${e.firstName} ${e.lastName} ${e.email} ${e.phone} ${e.courseTitle}`.toLowerCase();
+      const matchesSearch = searchStr.includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || 
+        (statusFilter === 'paid' && e.isRegistrationFeePaid) || 
+        (statusFilter === 'pending' && !e.isRegistrationFeePaid);
+      
+      const matchesCourse = courseFilter === 'all' || e.courseId.toString() === courseFilter;
+      
+      const matchesDate = !dateFilter || new Date(e.createdAt).toISOString().split('T')[0] === dateFilter;
+
+      return matchesSearch && matchesStatus && matchesCourse && matchesDate;
+    })
+    .sort((a, b) => {
+      const { key, direction } = sortConfig;
+      let valA: any = a[key as keyof Enrollment] || '';
+      let valB: any = b[key as keyof Enrollment] || '';
+
+      if (key === 'courseTitle') {
+        valA = a.courseTitle || '';
+        valB = b.courseTitle || '';
+      }
+
+      if (key === 'isRegistrationFeePaid') {
+        valA = a.isRegistrationFeePaid ? 1 : 0;
+        valB = b.isRegistrationFeePaid ? 1 : 0;
+      }
+
+      if (valA < valB) return direction === 'asc' ? -1 : 1;
+      if (valA > valB) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
 
   const handleOpenDialog = (enrollment?: Enrollment) => {
     if (enrollment) {
@@ -256,8 +313,8 @@ export default function Enrollments() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Inscriptions</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" fontWeight={600}>Inscriptions</Typography>
         <Button
           variant="contained"
           startIcon={<Add />}
@@ -266,6 +323,70 @@ export default function Enrollments() {
           Nouvelle Inscription
         </Button>
       </Box>
+
+      {/* Barre de recherche et Filtres */}
+      <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Rechercher par nom, téléphone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Statut Frais</InputLabel>
+              <Select
+                value={statusFilter}
+                label="Statut Frais"
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <MenuItem value="all">Tous</MenuItem>
+                <MenuItem value="paid">Payé</MenuItem>
+                <MenuItem value="pending">En attente</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={6} md={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Formation</InputLabel>
+              <Select
+                value={courseFilter}
+                label="Formation"
+                onChange={(e) => setCourseFilter(e.target.value)}
+              >
+                <MenuItem value="all">Toutes les formations</MenuItem>
+                {courses.map((course) => (
+                  <MenuItem key={course.id} value={course.id.toString()}>
+                    {course.title}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth
+              size="small"
+              type="date"
+              label="Date d'inscription"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+        </Grid>
+      </Paper>
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2, whiteSpace: 'pre-line' }}>
@@ -284,34 +405,52 @@ export default function Enrollments() {
           <TableHead>
             <TableRow>
               <TableCell>Nom Complet</TableCell>
-              <TableCell>Email</TableCell>
               <TableCell>Téléphone</TableCell>
-              <TableCell>Formation</TableCell>
-              <TableCell>Frais Inscription</TableCell>
-              <TableCell>Statut</TableCell>
-              <TableCell>Date</TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortConfig.key === 'courseTitle'}
+                  direction={sortConfig.key === 'courseTitle' ? sortConfig.direction : 'asc'}
+                  onClick={() => handleSort('courseTitle')}
+                >
+                  Formation
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortConfig.key === 'isRegistrationFeePaid'}
+                  direction={sortConfig.key === 'isRegistrationFeePaid' ? sortConfig.direction : 'asc'}
+                  onClick={() => handleSort('isRegistrationFeePaid')}
+                >
+                  Statut
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortConfig.key === 'createdAt'}
+                  direction={sortConfig.key === 'createdAt' ? sortConfig.direction : 'asc'}
+                  onClick={() => handleSort('createdAt')}
+                >
+                  Date
+                </TableSortLabel>
+              </TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {enrollments.length === 0 ? (
+            {filteredAndSortedEnrollments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">
-                  Aucune inscription. Cliquez sur "Nouvelle Inscription" pour commencer.
+                <TableCell colSpan={6} align="center">
+                  {searchTerm ? 'Aucun résultat trouvé.' : 'Aucune inscription. Cliquez sur "Nouvelle Inscription" pour commencer.'}
                 </TableCell>
               </TableRow>
             ) : (
-              enrollments.map((enrollment) => (
+              filteredAndSortedEnrollments.map((enrollment) => (
                 <TableRow key={enrollment.id}>
                   <TableCell>
                     {enrollment.firstName} {enrollment.lastName}
                   </TableCell>
-                  <TableCell>{enrollment.email || '-'}</TableCell>
                   <TableCell>{enrollment.phone}</TableCell>
-                  <TableCell>{enrollment.courseTitle || `Formation #${enrollment.courseId}`}</TableCell>
-                  <TableCell>
-                    {enrollment.registrationFee ? `${enrollment.registrationFee} DA` : '-'}
-                  </TableCell>
+                  <TableCell>{enrollment.courseTitle || 'NAN'}</TableCell>
                   <TableCell>{getStatusChip(enrollment)}</TableCell>
                   <TableCell>
                     {new Date(enrollment.createdAt).toLocaleDateString('fr-FR')}
