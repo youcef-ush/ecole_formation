@@ -67,7 +67,7 @@ export default function Sidebar({ drawerWidth, mobileOpen, desktopOpen = true, o
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Toolbar sx={{ px: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', py: 2 }}>
-          <img src="/logo.png" alt="Inspired Academy" style={{ maxHeight: '40px', maxWidth: '100%' }} />
+          <img src="/dashboard/logo.png" alt="Inspired Academy" style={{ maxHeight: '40px', maxWidth: '100%' }} />
           <Typography variant="subtitle1" fontWeight="bold" sx={{ color: 'text.primary', lineHeight: 1.2 }}>
             Inspired<br/>Academy
           </Typography>

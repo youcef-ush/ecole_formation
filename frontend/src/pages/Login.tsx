@@ -64,7 +64,7 @@ export default function Login() {
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
             <Box 
               component="img" 
-              src="/logo.png" 
+              src="/dashboard/logo.png" 
               alt="Inspired Academy" 
               sx={{ 
                 width: 150, 
