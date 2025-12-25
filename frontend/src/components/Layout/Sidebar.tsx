@@ -54,12 +54,8 @@ export default function Sidebar({ drawerWidth, mobileOpen, onDrawerToggle }: Sid
   const drawer = (
     <div>
       <Toolbar>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <SchoolIcon color="primary" />
-          <ListItemText
-            primary="Inspired Academy by Nana"
-            primaryTypographyProps={{ fontWeight: 600, color: 'primary', fontSize: '0.9rem' }}
-          />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', justifyContent: 'center', py: 1 }}>
+          <img src="/logo.png" alt="Inspired Academy" style={{ maxHeight: '50px', maxWidth: '100%' }} />
         </Box>
       </Toolbar>
       <Divider />

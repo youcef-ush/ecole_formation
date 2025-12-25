@@ -1,7 +1,7 @@
 {
-  "name": "ecole-formation-backend",
+  "name": "inspired-academy-backend",
   "version": "1.0.0",
-  "description": "Backend API pour École de Formation - Gestion administrative",
+  "description": "Backend API pour Inspired Academy by Nana - Gestion administrative",
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon src/server.ts",

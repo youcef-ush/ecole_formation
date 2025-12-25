@@ -57,8 +57,17 @@ export default function Login() {
       >
         <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
-            <SchoolIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-            <Typography component="h1" variant="h5" fontWeight={600}>
+            <Box 
+              component="img" 
+              src="/logo.png" 
+              alt="Inspired Academy" 
+              sx={{ 
+                width: 150, 
+                height: 'auto', 
+                mb: 2 
+              }} 
+            />
+            <Typography component="h1" variant="h5" fontWeight={600} textAlign="center">
               Inspired Academy by Nana
             </Typography>
             <Typography variant="caption" color="text.secondary">
