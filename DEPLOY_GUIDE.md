@@ -88,7 +88,14 @@ docker compose -f docker-compose.prod.yml up -d --build
 ## 7. Vérification
 
 Votre application devrait maintenant être accessible sur :
-http://inspiredacademy-dz.com
+http://inspiredacademy-dz.com:8080/dashboard
+
+## 8. Dépannage (Troubleshooting)
+
+### Erreur : "address already in use"
+Nous avons configuré l'application sur le port **8080** pour éviter les conflits avec votre site principal qui utilise le port 80.
+
+Si vous souhaitez que l'application soit accessible sans le port (ex: `http://inspiredacademy-dz.com/dashboard`), vous devez configurer le serveur web principal (celui qui occupe le port 80) pour rediriger le trafic `/dashboard` vers le port `8080`.
 
 ### Commandes Utiles
 
