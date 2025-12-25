@@ -1,29 +1,48 @@
-import { AppBar, Toolbar, IconButton, Typography, Box, Button } from '@mui/material'
+import { AppBar, Toolbar, IconButton, Typography, Box, Breadcrumbs, Link } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
-import LogoutIcon from '@mui/icons-material/Logout'
+import NavigateNextIcon from '@mui/icons-material/NavigateNext'
 import { useAuthStore } from '../../stores/authStore'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, Link as RouterLink } from 'react-router-dom'
 
 interface HeaderProps {
   drawerWidth: number
   onDrawerToggle: () => void
+  isSidebarOpen?: boolean
 }
 
-export default function Header({ drawerWidth, onDrawerToggle }: HeaderProps) {
-  const { user, logout } = useAuthStore()
-  const navigate = useNavigate()
+const routeNameMap: Record<string, string> = {
+  '': 'Tableau de bord',
+  'qr-scanner': 'Scanner Accès',
+  'enrollments': 'Inscriptions',
+  'payments': 'Paiements',
+  'payment-plans': 'Plans de Paiement',
+  'finances': 'Finances',
+  'students': 'Étudiants',
+  'trainers': 'Formateurs',
+  'courses': 'Formations',
+  'users': 'Utilisateurs',
+}
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
+export default function Header({ drawerWidth, onDrawerToggle, isSidebarOpen = true }: HeaderProps) {
+  const { user } = useAuthStore()
+  const location = useLocation()
+  
+  const pathnames = location.pathname.split('/').filter((x) => x)
 
   return (
     <AppBar
       position="fixed"
+      color="default"
+      elevation={0}
       sx={{
-        width: { sm: `calc(100% - ${drawerWidth}px)` },
-        ml: { sm: `${drawerWidth}px` },
+        width: { sm: isSidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
+        ml: { sm: isSidebarOpen ? `${drawerWidth}px` : 0 },
+        transition: (theme) => theme.transitions.create(['width', 'margin'], {
+          easing: theme.transitions.easing.sharp,
+          duration: theme.transitions.duration.leavingScreen,
+        }),
+        backgroundColor: 'background.default',
+        borderBottom: '1px solid rgba(0,0,0,0.05)'
       }}
     >
       <Toolbar>
@@ -31,20 +50,38 @@ export default function Header({ drawerWidth, onDrawerToggle }: HeaderProps) {
           color="inherit"
           edge="start"
           onClick={onDrawerToggle}
-          sx={{ mr: 2, display: { sm: 'none' } }}
+          sx={{ mr: 2 }}
         >
           <MenuIcon />
         </IconButton>
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-          Inspired Academy by Nana
-        </Typography>
+        
+        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
+          <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+            <Link component={RouterLink} underline="hover" color="inherit" to="/">
+              Accueil
+            </Link>
+            {pathnames.map((value, index) => {
+              const last = index === pathnames.length - 1
+              const to = `/${pathnames.slice(0, index + 1).join('/')}`
+              const name = routeNameMap[value] || value
+
+              return last ? (
+                <Typography color="text.primary" key={to} sx={{ fontWeight: 600 }}>
+                  {name}
+                </Typography>
+              ) : (
+                <Link component={RouterLink} underline="hover" color="inherit" to={to} key={to}>
+                  {name}
+                </Link>
+              )
+            })}
+          </Breadcrumbs>
+        </Box>
+
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="body2">
-            {user?.email} ({user?.role})
+          <Typography variant="body2" fontWeight="bold">
+            {user?.role} Access
           </Typography>
-          <Button color="inherit" startIcon={<LogoutIcon />} onClick={handleLogout}>
-            Déconnexion
-          </Button>
         </Box>
       </Toolbar>
     </AppBar>

@@ -53,6 +53,12 @@ export default function Login() {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
+          backgroundColor: 'background.default',
+          backgroundImage: `
+            radial-gradient(at 0% 0%, rgba(245, 166, 35, 0.2) 0px, transparent 50%),
+            radial-gradient(at 100% 0%, rgba(255, 201, 71, 0.2) 0px, transparent 50%),
+            radial-gradient(at 100% 100%, rgba(0, 0, 0, 0.1) 0px, transparent 50%)
+          `,
         }}
       >
         <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
