@@ -51,9 +51,9 @@ cd /var/www
 mkdir -p /var/www
 cd /var/www
 
-# Clonez le projet (remplacez par votre URL si différent)
-git clone https://github.com/youcef-ush/ecole_formation.git
-cd ecole_formation
+# Clonez le projet dans un NOUVEAU dossier (par exemple : ecole-formation)
+git clone https://github.com/youcef-ush/ecole_formation.git ecole-formation
+cd ecole-formation
 ```
 
 ## 5. Configuration de l'Environnement
@@ -68,11 +68,11 @@ Copiez et collez le contenu suivant (clic droit pour coller dans nano) :
 
 ```env
 # Base de données
-DB_PASSWORD=votre_mot_de_passe_db_securise
+DB_PASSWORD=eftg
 
 # Sécurité JWT (Changez ces valeurs pour la production !)
-JWT_SECRET=votre_secret_jwt_tres_long_et_aleatoire
-JWT_REFRESH_SECRET=votre_secret_refresh_tres_long_et_aleatoire
+JWT_SECRET=k9L2mN5pQ8rS1tU4vW7xY0zA3bC6dE9fG2hI5jK8lM1nO4pQ7rS0tU3vW6xY9zA
+JWT_REFRESH_SECRET=B2cD5eF8gH1iJ4kL7mN0oP3qR6sT9uV2wX5yZ8aB1cD4eF7gH0iJ3kL6mN9oP2q
 ```
 
 *Pour sauvegarder dans nano : `Ctrl+O`, `Entrée`, puis `Ctrl+X` pour quitter.*

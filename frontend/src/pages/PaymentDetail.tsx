@@ -91,7 +91,6 @@ export default function PaymentDetail() {
     // Config form (ajouter échéance)
     const [configDate, setConfigDate] = useState('');
     const [configAmount, setConfigAmount] = useState('');
-    const [nextDueDate, setNextDueDate] = useState('');
     
     // Receipt modal
     const [receiptData, setReceiptData] = useState<any>(null);
@@ -230,7 +229,6 @@ export default function PaymentDetail() {
             setOperationMode('NONE');
             setConfigDate('');
             setConfigAmount('');
-            setNextDueDate('');
             loadData();
         } catch (err: any) {
             setError(err.response?.data?.message || 'Erreur lors de l\'ajout de l\'échéance');

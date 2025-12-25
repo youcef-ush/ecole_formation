@@ -123,11 +123,11 @@ export default function Sidebar({ drawerWidth, mobileOpen, desktopOpen = true, o
       <Box sx={{ p: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
           <Avatar sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.primary.contrastText }}>
-            {user?.firstName?.charAt(0) || 'U'}
+            {user?.email?.charAt(0).toUpperCase() || 'U'}
           </Avatar>
           <Box sx={{ overflow: 'hidden' }}>
             <Typography variant="subtitle2" noWrap fontWeight="bold">
-              {user?.firstName} {user?.lastName}
+              {user?.email}
             </Typography>
             <Typography variant="caption" color="text.secondary" noWrap display="block">
               {user?.role}

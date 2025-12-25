@@ -6,7 +6,6 @@ import {
     CardContent,
     Typography,
     Button,
-    Grid,
     Divider,
     Chip,
     IconButton,
@@ -115,7 +114,7 @@ export default function FinanceDetail() {
                         <Chip
                             label={transaction.type === 'INCOME' ? 'REVENU' : 'DÉPENSE'}
                             color={transaction.type === 'INCOME' ? 'success' : 'error'}
-                            size="large"
+                            size="medium"
                             sx={{ fontSize: '1.1rem', px: 3, py: 2 }}
                         />
                     </Box>

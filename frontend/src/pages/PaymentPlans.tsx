@@ -5,11 +5,6 @@ import {
     CardContent,
     Typography,
     Button,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
     Alert,
     Table,
     TableBody,
@@ -237,9 +232,8 @@ export default function PaymentPlans() {
             </Card>
 
             {/* Dialog for creating/editing payment plans */}
-            {console.log('Rendering dialog, openDialog:', openDialog)}
             {openDialog && (
-                <div style={{
+                <Box sx={{
                     position: 'fixed',
                     top: 0,
                     left: 0,
@@ -251,25 +245,28 @@ export default function PaymentPlans() {
                     justifyContent: 'center',
                     zIndex: 1000
                 }}>
-                    <div style={{
-                        backgroundColor: 'white',
-                        padding: '20px',
-                        borderRadius: '8px',
+                    <Box sx={{
+                        backgroundColor: 'background.paper',
+                        padding: 3,
+                        borderRadius: 2,
                         minWidth: '400px',
-                        maxWidth: '500px'
+                        maxWidth: '500px',
+                        boxShadow: 24
                     }}>
-                        <h2>{editingPlan ? 'Modifier le Plan de Paiement' : 'Nouveau Plan de Paiement'}</h2>
-                        <div style={{ marginBottom: '10px' }}>
-                            <label>Nom du plan:</label>
+                        <Typography variant="h6" gutterBottom>
+                            {editingPlan ? 'Modifier le Plan de Paiement' : 'Nouveau Plan de Paiement'}
+                        </Typography>
+                        <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle2" gutterBottom>Nom du plan:</Typography>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 style={{ width: '100%', padding: '8px', marginTop: '4px' }}
                             />
-                        </div>
-                        <div style={{ marginBottom: '10px' }}>
-                            <label>Nombre d'échéances:</label>
+                        </Box>
+                        <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle2" gutterBottom>Nombre d'échéances:</Typography>
                             <input
                                 type="number"
                                 value={installmentsCount}
@@ -277,9 +274,9 @@ export default function PaymentPlans() {
                                 min="1"
                                 style={{ width: '100%', padding: '8px', marginTop: '4px' }}
                             />
-                        </div>
-                        <div style={{ marginBottom: '10px' }}>
-                            <label>Intervalle (jours):</label>
+                        </Box>
+                        <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle2" gutterBottom>Intervalle (jours):</Typography>
                             <input
                                 type="number"
                                 value={intervalDays}
@@ -287,28 +284,28 @@ export default function PaymentPlans() {
                                 min="1"
                                 style={{ width: '100%', padding: '8px', marginTop: '4px' }}
                             />
-                        </div>
-                        <div style={{ marginBottom: '20px' }}>
-                            <label>Description:</label>
+                        </Box>
+                        <Box sx={{ mb: 3 }}>
+                            <Typography variant="subtitle2" gutterBottom>Description:</Typography>
                             <textarea
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                                 rows={3}
                                 style={{ width: '100%', padding: '8px', marginTop: '4px' }}
                             />
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                            <button onClick={handleCloseDialog}>Annuler</button>
-                            <button
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                            <Button onClick={handleCloseDialog}>Annuler</Button>
+                            <Button
+                                variant="contained"
                                 onClick={handleSubmit}
-                                style={{ backgroundColor: '#1976d2', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '4px' }}
                                 disabled={!name || !installmentsCount || !intervalDays}
                             >
                                 {editingPlan ? 'Modifier' : 'Créer'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                            </Button>
+                        </Box>
+                    </Box>
+                </Box>
             )}
         </Box>
     );

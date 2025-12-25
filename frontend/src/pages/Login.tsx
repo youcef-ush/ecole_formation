@@ -9,7 +9,6 @@ import {
   Box,
   Alert,
 } from '@mui/material'
-import SchoolIcon from '@mui/icons-material/School'
 import { useAuthStore } from '../stores/authStore'
 import api from '../services/api'
 

@@ -27,7 +27,7 @@ export default function Layout() {
       <Header 
         drawerWidth={drawerWidth} 
         onDrawerToggle={handleDrawerToggle} 
-        isSidebarOpen={desktopOpen} // Pass desktop state for margin calculations
+        isSidebarOpen={isSidebarOpen} // Pass desktop state for margin calculations
       />
       <Sidebar
         drawerWidth={drawerWidth}
