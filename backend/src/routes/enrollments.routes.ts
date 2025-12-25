@@ -11,7 +11,7 @@ const enrollmentService = new EnrollmentService();
 
 // Protect all routes
 router.use(authenticate);
-router.use(authorize(UserRole.ADMIN));
+router.use(authorize(UserRole.ADMIN, UserRole.RECEPTION));
 
 // GET /api/enrollments - Liste de toutes les inscriptions
 router.get('/', async (req: AuthRequest, res: Response, next) => {

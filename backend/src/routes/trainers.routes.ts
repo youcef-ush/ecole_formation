@@ -12,7 +12,7 @@ import fs from 'fs';
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize(UserRole.ADMIN));
+router.use(authorize(UserRole.ADMIN, UserRole.RECEPTION));
 
 /**
  * @swagger

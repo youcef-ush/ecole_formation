@@ -17,7 +17,7 @@ const qrCodeService = new QrCodeService();
 
 // Protect all routes
 router.use(authenticate);
-router.use(authorize(UserRole.ADMIN));
+router.use(authorize(UserRole.ADMIN, UserRole.RECEPTION));
 
 // GET /api/students - Liste de tous les étudiants
 router.get('/', async (req: AuthRequest, res: Response, next) => {

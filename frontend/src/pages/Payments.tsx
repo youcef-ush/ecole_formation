@@ -28,6 +28,22 @@ interface Course {
     title: string;
 }
 
+interface Installment {
+    id: number;
+    installmentNumber: number;
+    dueDate: string;
+    amount: string | number;
+    paidDate?: string;
+    status: 'PAID' | 'PENDING' | 'OVERDUE';
+}
+
+interface Assignment {
+    id: number;
+    course: Course;
+    paymentPlan: any;
+    installments: Installment[];
+}
+
 interface Student {
     id: number;
     firstName: string;
@@ -37,12 +53,14 @@ interface Student {
     enrollment?: any;
     course?: any;
     lastPaymentDate?: string;
+    lastPaymentAmount?: number;
     totalPaid?: number;
     nextInstallment?: {
         id?: number;
         dueDate: string;
         amount: number;
     };
+    assignments?: Assignment[];
 }
 
 export default function Payments() {
@@ -186,13 +204,30 @@ export default function Payments() {
                             <TableRow>
                                 <TableCell><strong>Nom</strong></TableCell>
                                 <TableCell><strong>Dernier paiement</strong></TableCell>
-                                <TableCell><strong>Total payé</strong></TableCell>
                                 <TableCell><strong>Prochaine échéance</strong></TableCell>
                                 <TableCell><strong>Action</strong></TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {filteredStudents.map((student) => (
+                            {filteredStudents.map((student) => {
+                                // Récupérer tous les installments de tous les assignments
+                                const allInstallments = student.assignments?.flatMap(a => a.installments || []) || [];
+                                
+                                // Dernier paiement (installment payé le plus récent)
+                                const paidInstallments = allInstallments
+                                    .filter(inst => inst.status === 'PAID' && inst.paidDate)
+                                    .sort((a, b) => new Date(b.paidDate!).getTime() - new Date(a.paidDate!).getTime());
+                                const lastPayment = paidInstallments[0];
+                                
+                                // Prochaine échéance (basé uniquement sur dueDate - la date la plus proche)
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0);
+                                const futureInstallments = allInstallments
+                                    .filter(inst => new Date(inst.dueDate) >= today)
+                                    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+                                const nextInstallment = futureInstallments[0];
+                                
+                                return (
                                 <TableRow 
                                     key={student.id}
                                     sx={{ 
@@ -207,31 +242,26 @@ export default function Payments() {
                                         </Typography>
                                     </TableCell>
                                     <TableCell>
-                                        {student.lastPaymentDate ? (
-                                            <Typography variant="body2">
-                                                {new Date(student.lastPaymentDate).toLocaleDateString('fr-FR')}
-                                            </Typography>
+                                        {lastPayment ? (
+                                            <Box>
+                                                <Typography variant="body2">
+                                                    {new Date(lastPayment.paidDate!).toLocaleDateString('fr-FR')}
+                                                </Typography>
+                                                <Typography variant="body2" color="success.main" fontWeight="bold">
+                                                    {Number(lastPayment.amount).toLocaleString('fr-FR')} DA
+                                                </Typography>
+                                            </Box>
                                         ) : (
                                             <Typography variant="body2" color="text.secondary">
-                                                Jamais
+                                                Aucun
                                             </Typography>
                                         )}
                                     </TableCell>
                                     <TableCell>
-                                        <Typography variant="body2" color="success.main" fontWeight="bold">
-                                            {student.totalPaid ? `${student.totalPaid.toLocaleString('fr-FR')} DA` : '0 DA'}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                        {student.nextInstallment ? (
-                                            <Box>
-                                                <Typography variant="body2">
-                                                    {new Date(student.nextInstallment.dueDate).toLocaleDateString('fr-FR')}
-                                                </Typography>
-                                                <Typography variant="body2" color="error.main" fontWeight="bold">
-                                                    {student.nextInstallment.amount} DA
-                                                </Typography>
-                                            </Box>
+                                        {nextInstallment ? (
+                                            <Typography variant="body2">
+                                                {new Date(nextInstallment.dueDate).toLocaleDateString('fr-FR')}
+                                            </Typography>
                                         ) : (
                                             <Typography variant="body2" color="text.secondary">
                                                 Aucune
@@ -251,7 +281,8 @@ export default function Payments() {
                                         </Button>
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                                );
+                            })}
                         </TableBody>
                     </Table>
 

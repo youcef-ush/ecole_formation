@@ -14,7 +14,7 @@ const router = Router();
 
 // Protect all routes
 router.use(authenticate);
-router.use(authorize(UserRole.ADMIN));
+router.use(authorize(UserRole.ADMIN, UserRole.RECEPTION));
 
 // GET /api/students/:studentId/assignments - Liste des affectations d'un étudiant
 router.get('/:studentId/assignments', async (req: AuthRequest, res: Response, next) => {

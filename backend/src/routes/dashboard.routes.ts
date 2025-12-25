@@ -12,7 +12,7 @@ import { UserRole } from '../entities/User.entity';
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize(UserRole.ADMIN));
+router.use(authorize(UserRole.ADMIN, UserRole.RECEPTION));
 
 // GET /api/dashboard/stats
 router.get('/stats', async (req: AuthRequest, res: Response, next) => {

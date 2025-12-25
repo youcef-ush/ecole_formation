@@ -9,7 +9,7 @@ import { AppError } from '../middleware/error.middleware';
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize(UserRole.ADMIN));
+router.use(authorize(UserRole.ADMIN, UserRole.RECEPTION));
 
 /**
  * GET /api/courses

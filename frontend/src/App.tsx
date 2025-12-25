@@ -13,6 +13,9 @@ import QRScanner from './pages/QRScanner'
 import Payments from './pages/Payments'
 import PaymentDetail from './pages/PaymentDetail'
 import PaymentPlans from './pages/PaymentPlans'
+import Finances from './pages/Finances'
+import FinanceDetail from './pages/FinanceDetail'
+import Users from './pages/Users'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore()
@@ -41,6 +44,9 @@ function App() {
         <Route path="payments" element={<Payments />} />
         <Route path="payments/:id" element={<PaymentDetail />} />
         <Route path="payment-plans" element={<PaymentPlans />} />
+        <Route path="finances" element={<Finances />} />
+        <Route path="finances/:id" element={<FinanceDetail />} />
+        <Route path="users" element={<Users />} />
         <Route path="qr-scanner" element={<QRScanner />} />
       </Route>
     </Routes>

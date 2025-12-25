@@ -52,14 +52,15 @@ router.post('/login', async (req: Request, res: Response, next) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      throw new AppError('Email et mot de passe requis', 400);
+      throw new AppError('Email/Username et mot de passe requis', 400);
     }
 
     const userRepo = AppDataSource.getRepository(User);
+    // Support login with either email or username
     const user = await userRepo
       .createQueryBuilder("user")
       .addSelect("user.password")
-      .where("user.email = :email", { email })
+      .where("user.email = :email OR user.username = :username", { email, username: email })
       .getOne();
 
     if (!user) {

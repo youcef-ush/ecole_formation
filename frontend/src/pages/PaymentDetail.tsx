@@ -33,6 +33,7 @@ import {
     EventNote,
 } from '@mui/icons-material';
 import api from '../services/api';
+import ReceiptModal from '../components/ReceiptModal';
 
 interface Student {
     id: number;
@@ -91,6 +92,9 @@ export default function PaymentDetail() {
     const [configDate, setConfigDate] = useState('');
     const [configAmount, setConfigAmount] = useState('');
     const [nextDueDate, setNextDueDate] = useState('');
+    
+    // Receipt modal
+    const [receiptData, setReceiptData] = useState<any>(null);
 
     // Calculer la date suggérée pour la prochaine échéance
     const getSuggestedNextDate = (assignment: StudentAssignment): string => {
@@ -135,6 +139,25 @@ export default function PaymentDetail() {
         // Si aucune dette, suggérer le montant de la dernière échéance
         const lastInstallment = assignment.installments[assignment.installments.length - 1];
         return lastInstallment?.amount.toString() || '0';
+    };
+
+    // Fonction pour imprimer un reçu d'échéance
+    const handlePrintInstallment = (assignment: StudentAssignment, installment: Installment) => {
+        setReceiptData({
+            studentName: `${student?.firstName} ${student?.lastName}`,
+            amount: installment.amount,
+            date: installment.dueDate,
+            courseTitle: assignment.paymentPlan.name,
+            type: 'INSTALLMENT',
+        });
+    };
+
+    // Trouver la prochaine échéance à payer (première non payée)
+    const getNextInstallment = (installments: Installment[]): Installment | null => {
+        const pending = installments
+            .filter(i => i.status === 'PENDING')
+            .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+        return pending.length > 0 ? pending[0] : null;
     };
 
     const loadData = useCallback(async () => {
@@ -276,8 +299,12 @@ export default function PaymentDetail() {
                                         </Typography>
                                     </Box>
                                     <Box sx={{ textAlign: 'right' }}>
-                                        <Typography variant="h6" fontWeight={700}>{assignment.totalAmount} DA</Typography>
-                                        <Typography variant="caption" color="text.secondary">Montant Total</Typography>
+                                        <Typography variant="h6" fontWeight={700}>
+                                            {assignment.installments
+                                                .filter(i => i.status === 'PAID')
+                                                .sort((a, b) => new Date(b.paidDate || b.dueDate).getTime() - new Date(a.paidDate || a.dueDate).getTime())[0]?.amount || 0} DA
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">Dernier Paiement</Typography>
                                     </Box>
                                 </Box>
 
@@ -316,9 +343,31 @@ export default function PaymentDetail() {
                                                         </TableRow>
                                                     </TableHead>
                                                     <TableBody>
-                                                        {assignment.installments.map((inst) => (
-                                                            <TableRow key={inst.id}>
-                                                                <TableCell>{inst.installmentNumber}</TableCell>
+                                                        {assignment.installments.map((inst) => {
+                                                            const isNextInstallment = getNextInstallment(assignment.installments)?.id === inst.id;
+                                                            return (
+                                                            <TableRow 
+                                                                key={inst.id}
+                                                                sx={{
+                                                                    bgcolor: isNextInstallment ? '#fff3e0' : 'transparent',
+                                                                    '&:hover': {
+                                                                        bgcolor: isNextInstallment ? '#ffe0b2' : '#f5f5f5'
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <TableCell>
+                                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                                        {inst.installmentNumber}
+                                                                        {isNextInstallment && (
+                                                                            <Chip 
+                                                                                label="Prochaine" 
+                                                                                size="small" 
+                                                                                color="warning"
+                                                                                sx={{ height: 18, fontSize: '0.7rem' }}
+                                                                            />
+                                                                        )}
+                                                                    </Box>
+                                                                </TableCell>
                                                                 <TableCell>{new Date(inst.dueDate).toLocaleDateString('fr-FR')}</TableCell>
                                                                 <TableCell sx={{ fontWeight: 600 }}>{inst.amount} DA</TableCell>
                                                                 <TableCell>
@@ -345,13 +394,18 @@ export default function PaymentDetail() {
                                                                         </Button>
                                                                     )}
                                                                     {inst.status === 'PAID' && (
-                                                                        <IconButton size="small" color="primary">
+                                                                        <IconButton 
+                                                                            size="small" 
+                                                                            color="primary"
+                                                                            onClick={() => handlePrintInstallment(assignment, inst)}
+                                                                            title="Imprimer le reçu"
+                                                                        >
                                                                             <Print fontSize="small" />
                                                                         </IconButton>
                                                                     )}
                                                                 </TableCell>
                                                             </TableRow>
-                                                        ))}
+                                                        )})}
                                                     </TableBody>
                                                 </Table>
                                             </TableContainer>
@@ -475,6 +529,12 @@ export default function PaymentDetail() {
                     </Grid>
                 ))}
             </Grid>
+            
+            <ReceiptModal
+                open={!!receiptData}
+                onClose={() => setReceiptData(null)}
+                data={receiptData}
+            />
         </Box>
     );
 }

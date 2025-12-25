@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeor
 
 export enum UserRole {
   ADMIN = "ADMIN",
+  RECEPTION = "RECEPTION",
   STAFF = "STAFF"
 }
 

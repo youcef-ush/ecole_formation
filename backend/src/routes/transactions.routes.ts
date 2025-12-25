@@ -1,8 +1,13 @@
 import { Router } from 'express';
 import { TransactionController } from '../controllers/transactions.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, authorize } from '../middleware/auth.middleware';
+import { UserRole } from '../entities/User.entity';
 
 const router = Router();
+
+// Protéger toutes les routes - seul ADMIN peut accéder aux finances
+router.use(authenticate);
+router.use(authorize(UserRole.ADMIN));
 
 /**
  * @swagger
