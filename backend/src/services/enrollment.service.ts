@@ -2,9 +2,11 @@ import { AppDataSource } from "../config/database.config";
 import { Enrollment } from "../entities/Enrollment.entity";
 import { Student, StudentStatus } from "../entities/Student.entity";
 import { Course } from "../entities/Course.entity";
-import { Payment, PaymentType } from "../entities/Payment.entity";
+import { Payment, PaymentType, PaymentMethod } from "../entities/Payment.entity";
 import { Installment, InstallmentStatus } from "../entities/Installment.entity";
 import { QrCodeService } from "./qrcode.service";
+import { TransactionModel } from "../models/transaction.model";
+import { TransactionType, TransactionSource } from "../types/transaction.types";
 
 export class EnrollmentService {
     private enrollmentRepo = AppDataSource.getRepository(Enrollment);
@@ -84,7 +86,8 @@ export class EnrollmentService {
      * Marquer le paiement des frais d'inscription et créer automatiquement un Student
      */
     async markEnrollmentPaid(enrollmentId: number) {
-        return await AppDataSource.manager.transaction(async (manager) => {
+        // Exécuter d'abord la transaction TypeORM
+        const result = await AppDataSource.manager.transaction(async (manager) => {
             // 1. Récupérer l'enrollment
             const enrollment = await manager.findOne(Enrollment, { where: { id: enrollmentId } });
             if (!enrollment) {
@@ -100,7 +103,7 @@ export class EnrollmentService {
             enrollment.registrationFeePaidAt = new Date();
             await manager.save(Enrollment, enrollment);
 
-            // 3. Créer automatiquement le Student avec QR code
+            // 3. Créer automatiquement le Student avec QR code AVANT le paiement
             const course = await manager.findOne(Course, { where: { id: enrollment.courseId! } });
             if (!course) {
                 throw new Error("Course not found");
@@ -125,8 +128,40 @@ export class EnrollmentService {
             // Sauvegarder l'étudiant avec les QR codes
             await manager.save(Student, savedStudent);
 
+            // 5. Créer l'enregistrement du paiement avec le student_id
+            if (enrollment.registrationFee && enrollment.registrationFee > 0) {
+                const payment = manager.create(Payment, {
+                    studentId: savedStudent.id,
+                    amount: enrollment.registrationFee,
+                    paymentMethod: PaymentMethod.CASH,
+                    paymentType: PaymentType.REGISTRATION,
+                    paymentDate: new Date(),
+                    description: `Frais d'inscription - ${enrollment.firstName} ${enrollment.lastName}`
+                });
+                await manager.save(Payment, payment);
+            }
+
             return { enrollment, student: savedStudent };
         });
+
+        // 6. APRÈS que la transaction TypeORM soit commitée, créer la transaction financière
+        if (result.enrollment.registrationFee && result.enrollment.registrationFee > 0) {
+            try {
+                await TransactionModel.create({
+                    type: TransactionType.INCOME,
+                    source: TransactionSource.REGISTRATION_FEE,
+                    amount: result.enrollment.registrationFee,
+                    description: `Frais d'inscription - ${result.enrollment.firstName} ${result.enrollment.lastName}`,
+                    transactionDate: new Date(),
+                    studentId: result.student.id,
+                });
+            } catch (error) {
+                console.error('Erreur lors de la création de la transaction financière:', error);
+                // Ne pas faire échouer l'inscription si la transaction financière échoue
+            }
+        }
+
+        return result;
     }
 
     /**

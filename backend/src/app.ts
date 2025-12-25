@@ -17,6 +17,7 @@ import scanRoutes from './routes/scan.routes';
 import paymentPlansRoutes from './routes/payment-plans.routes';
 import studentPaymentPlansRoutes from './routes/student-payment-plans.routes';
 import studentAssignmentsRoutes from './routes/student-assignments.routes';
+import transactionsRoutes from './routes/transactions.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { translateQueryParams, translateRequestBody } from './middleware/translation.middleware';
 
@@ -74,6 +75,7 @@ app.use('/api/payment-plans', paymentPlansRoutes);
 app.use('/api/student-payment-plans', studentPaymentPlansRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/students', studentAssignmentsRoutes);
+app.use('/api/transactions', transactionsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

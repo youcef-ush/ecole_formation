@@ -5,6 +5,8 @@ import { Installment, InstallmentStatus } from "../entities/Installment.entity";
 import { Student } from "../entities/Student.entity";
 import { StudentAssignment } from "../entities/StudentAssignment.entity";
 import { PaymentPlan, PaymentPlanType } from "../entities/PaymentPlan.entity";
+import { TransactionModel } from "../models/transaction.model";
+import { TransactionType, TransactionSource } from "../types/transaction.types";
 
 export class PaymentService {
     private paymentRepo = AppDataSource.getRepository(Payment);
@@ -40,6 +42,18 @@ export class PaymentService {
             });
 
             const savedPayment = await manager.save(Payment, payment);
+
+            // Créer une transaction financière automatiquement
+            await TransactionModel.create({
+                type: TransactionType.INCOME,
+                source: paymentType === PaymentType.REGISTRATION 
+                    ? TransactionSource.REGISTRATION_FEE 
+                    : TransactionSource.PAYMENT_INSTALLMENT,
+                amount: amount,
+                description: description || `Paiement ${paymentType}`,
+                transactionDate: new Date(),
+                studentId: studentId,
+            });
 
             // Si c'est un paiement d'échéance, appliquer aux assignments actifs
             if (paymentType === PaymentType.INSTALLMENT) {
@@ -185,6 +199,16 @@ export class PaymentService {
             });
 
             const savedPayment = await manager.save(Payment, payment);
+
+            // Créer une transaction financière automatiquement
+            await TransactionModel.create({
+                type: TransactionType.INCOME,
+                source: TransactionSource.PAYMENT_INSTALLMENT,
+                amount: amount,
+                description: description || `Paiement échéance N°${installment.installmentNumber}`,
+                transactionDate: new Date(),
+                studentId: installment.studentAssignment.studentId,
+            });
 
             // Mettre à jour le statut de l'échéance
             installment.status = InstallmentStatus.PAID;

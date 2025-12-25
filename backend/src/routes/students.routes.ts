@@ -89,7 +89,6 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
 router.get('/payment-status', async (req: AuthRequest, res: Response, next) => {
   try {
     const studentRepo = AppDataSource.getRepository(Student);
-    const paymentRepo = AppDataSource.getRepository(Payment);
 
     // Récupérer tous les étudiants avec leurs relations de base
     const students = await studentRepo.find({
@@ -101,48 +100,38 @@ router.get('/payment-status', async (req: AuthRequest, res: Response, next) => {
     const studentsWithPaymentStatus = await Promise.all(
       students.map(async (student) => {
         try {
-          // Récupérer tous les paiements de l'étudiant
-          const payments = await paymentRepo.find({
-            where: { studentId: student.id },
-            order: { paymentDate: 'DESC' },
+          // Récupérer les assignments (échéanciers) de l'étudiant avec leurs échéances
+          const assignments = await AppDataSource.getRepository(StudentAssignment).find({
+            where: { student: { id: student.id } },
+            relations: ['installments', 'paymentPlan', 'course'],
+            order: { createdAt: 'DESC' },
           });
 
+          // Récupérer toutes les échéances de tous les assignments
+          const allInstallments = assignments.flatMap(assignment => assignment.installments || []);
+          
+          // Échéances payées triées par date de paiement (la plus récente en premier)
+          const paidInstallments = allInstallments
+            .filter(inst => inst.status === 'PAID' && inst.paidDate)
+            .sort((a, b) => new Date(b.paidDate!).getTime() - new Date(a.paidDate!).getTime());
+
+          // Dernier paiement
+          const lastPaymentDate = paidInstallments.length > 0 ? paidInstallments[0].paidDate : null;
+          const lastPaymentAmount = paidInstallments.length > 0 ? Number(paidInstallments[0].amount) : null;
+
           // Calculer le total payé
-          const totalPaid = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+          const totalPaid = paidInstallments.reduce((sum, inst) => sum + Number(inst.amount), 0);
 
-          // Trouver la date du dernier paiement
-          const lastPaymentDate = payments.length > 0 ? payments[0].paymentDate : null;
+          // Trouver la prochaine échéance (première non payée, triée par date d'échéance)
+          const pendingInstallments = allInstallments
+            .filter(installment => installment.status !== 'PAID')
+            .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
-          // Trouver la prochaine échéance
-          let nextInstallment = null;
-          try {
-            // Récupérer les échéances via les assignments de l'étudiant
-            const assignments = await AppDataSource.getRepository(StudentAssignment).find({
-              where: { student: { id: student.id } },
-              relations: ['installments'],
-            });
-
-            // Trouver toutes les échéances
-            const allInstallments = assignments.flatMap(assignment => assignment.installments || []);
-            console.log(`Étudiant ${student.id}: ${assignments.length} assignments, ${allInstallments.length} installments totaux`);
-            const pendingInstallments = allInstallments
-              .filter(installment => installment.status !== 'PAID')
-              .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-
-            if (pendingInstallments.length > 0) {
-              console.log(`Étudiant ${student.id}: Trouvé ${pendingInstallments.length} échéances non payées, première:`, pendingInstallments[0]);
-              nextInstallment = {
-                id: pendingInstallments[0].id,
-                dueDate: pendingInstallments[0].dueDate,
-                amount: pendingInstallments[0].amount,
-              };
-            } else {
-              console.log(`Étudiant ${student.id}: Aucune échéance à payer trouvée`);
-            }
-          } catch (error) {
-            // Si erreur lors de la récupération des échéances, continuer sans
-            console.warn(`Erreur récupération échéances pour étudiant ${student.id}:`, error);
-          }
+          const nextInstallment = pendingInstallments.length > 0 ? {
+            id: pendingInstallments[0].id,
+            dueDate: pendingInstallments[0].dueDate,
+            amount: Number(pendingInstallments[0].amount),
+          } : null;
 
           return {
             id: student.id,
@@ -151,8 +140,10 @@ router.get('/payment-status', async (req: AuthRequest, res: Response, next) => {
             email: student.enrollment?.email || '',
             phone: student.enrollment?.phone || '',
             lastPaymentDate,
+            lastPaymentAmount,
             totalPaid,
             nextInstallment,
+            assignments, // Ajouter les assignments complets avec installments
           };
         } catch (error) {
           // En cas d'erreur pour un étudiant, retourner avec des valeurs par défaut
@@ -164,8 +155,10 @@ router.get('/payment-status', async (req: AuthRequest, res: Response, next) => {
             email: student.enrollment?.email || '',
             phone: student.enrollment?.phone || '',
             lastPaymentDate: null,
+            lastPaymentAmount: null,
             totalPaid: 0,
             nextInstallment: null,
+            assignments: [], // Ajouter assignments vide en cas d'erreur
           };
         }
       })
