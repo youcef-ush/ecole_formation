@@ -246,7 +246,7 @@ export default function Courses() {
                     Durée: {course.durationMonths} mois
                   </Typography>
                   <Typography variant="h6" color="primary" fontWeight={600} mt={1}>
-                    {course.totalPrice?.toLocaleString()} DA
+                    {course.price?.toLocaleString()} DA
                   </Typography>
                 </CardContent>
                 <CardActions>
@@ -323,7 +323,7 @@ export default function Courses() {
                   Prix Total
                 </Typography>
                 <Typography variant="h6" color="success.main" fontWeight={600}>
-                  {selectedCourse.totalPrice?.toLocaleString()} DA
+                  {selectedCourse.price?.toLocaleString()} DA
                 </Typography>
               </Grid>
 

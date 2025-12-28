@@ -5,9 +5,11 @@ import { Student } from '../entities/Student.entity';
 import { Course } from '../entities/Course.entity';
 import { Enrollment } from "../entities/Enrollment.entity";
 import { Payment } from '../entities/Payment.entity';
+import { Installment, InstallmentStatus } from '../entities/Installment.entity';
 import { AccessLog } from '../entities/AccessLog.entity'; // Replaces Attendance
 import { authenticate, authorize, AuthRequest } from '../middleware/auth.middleware';
 import { UserRole } from '../entities/User.entity';
+import { Between, LessThanOrEqual, In } from 'typeorm';
 
 const router = Router();
 
@@ -83,6 +85,53 @@ router.get('/attendance-stats', async (req: AuthRequest, res: Response, next) =>
         deniedCount,
         // Detailed stats can be added later
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/dashboard/payment-alerts
+router.get('/payment-alerts', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const installmentRepo = AppDataSource.getRepository(Installment);
+    
+    const today = new Date();
+    const nextWeek = new Date();
+    nextWeek.setDate(today.getDate() + 7);
+
+    const todayStr = today.toISOString().split('T')[0];
+    const nextWeekStr = nextWeek.toISOString().split('T')[0];
+
+    const alerts = await installmentRepo.find({
+      where: {
+        status: In([InstallmentStatus.PENDING, InstallmentStatus.OVERDUE]),
+        dueDate: LessThanOrEqual(nextWeekStr)
+      },
+      relations: ['studentAssignment', 'studentAssignment.student', 'studentAssignment.student.enrollment', 'studentAssignment.course'],
+      order: {
+        dueDate: 'ASC'
+      }
+    });
+
+    const formattedAlerts = alerts.map(inst => {
+      const dueDateObj = new Date(inst.dueDate);
+      const diffTime = dueDateObj.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      return {
+        id: inst.id,
+        studentName: `${inst.studentAssignment.student.enrollment.firstName} ${inst.studentAssignment.student.enrollment.lastName}`,
+        courseTitle: inst.studentAssignment.course.title,
+        amount: inst.amount,
+        dueDate: inst.dueDate,
+        daysRemaining: diffDays
+      };
+    });
+
+    res.json({
+      success: true,
+      data: formattedAlerts
     });
   } catch (error) {
     next(error);

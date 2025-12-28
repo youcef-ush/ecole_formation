@@ -7,10 +7,16 @@ import {
   Box,
   CircularProgress,
   Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
 } from '@mui/material'
 import SchoolIcon from '@mui/icons-material/School'
 import BookIcon from '@mui/icons-material/Book'
-import PaidIcon from '@mui/icons-material/Paid'
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import CancelIcon from '@mui/icons-material/Cancel'
@@ -29,6 +35,15 @@ interface AccessStats {
   deniedCount: number
 }
 
+interface PaymentAlert {
+  id: number
+  studentName: string
+  courseTitle: string
+  amount: number
+  dueDate: string
+  daysRemaining: number
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
 
@@ -45,6 +60,14 @@ export default function Dashboard() {
     queryFn: async () => {
       const response = await api.get('/dashboard/attendance-stats')
       return response.data.data || { grantedCount: 0, deniedCount: 0 }
+    },
+  })
+
+  const { data: paymentAlerts } = useQuery<PaymentAlert[]>({
+    queryKey: ['payment-alerts'],
+    queryFn: async () => {
+      const response = await api.get('/dashboard/payment-alerts')
+      return response.data.data || []
     },
   })
 
@@ -82,12 +105,6 @@ export default function Dashboard() {
       value: stats?.activeEnrollments || 0,
       icon: <SchoolIcon sx={{ fontSize: 40 }} />,
       color: '#2e7d32',
-    },
-    {
-      title: 'Revenu Total',
-      value: `${(stats?.totalRevenue || 0).toLocaleString('fr-DZ')} DA`,
-      icon: <PaidIcon sx={{ fontSize: 40 }} />,
-      color: '#9c27b0',
     },
   ]
 
@@ -183,6 +200,57 @@ export default function Dashboard() {
                   </Typography>
                 </Box>
               </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Payment Alerts */}
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom fontWeight={600} color="warning.main">
+                ⚠️ Paiements à venir et en retard
+              </Typography>
+              {paymentAlerts && paymentAlerts.length > 0 ? (
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Étudiant</TableCell>
+                        <TableCell>Formation</TableCell>
+                        <TableCell>Montant</TableCell>
+                        <TableCell>Échéance</TableCell>
+                        <TableCell>Jours restants</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {paymentAlerts.map((alert) => (
+                        <TableRow key={alert.id}>
+                          <TableCell>{alert.studentName}</TableCell>
+                          <TableCell>{alert.courseTitle}</TableCell>
+                          <TableCell>{alert.amount} DA</TableCell>
+                          <TableCell>{new Date(alert.dueDate).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={
+                                alert.daysRemaining === 0 ? "Aujourd'hui" :
+                                alert.daysRemaining < 0 ? `Retard J+${Math.abs(alert.daysRemaining)}` :
+                                `J-${alert.daysRemaining}`
+                              } 
+                              color={alert.daysRemaining <= 3 ? "error" : "warning"} 
+                              size="small" 
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Aucun paiement à venir dans les 7 prochains jours.
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Grid>

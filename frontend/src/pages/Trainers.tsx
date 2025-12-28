@@ -36,7 +36,7 @@ interface Trainer {
   lastName: string
   email: string
   phone: string
-  specialties: string[]
+  specialty: string
   bio: string
   cv?: string
   courses?: Course[]
@@ -85,7 +85,7 @@ export default function Trainers() {
       trainer.firstName?.toLowerCase().includes(query) ||
       trainer.lastName?.toLowerCase().includes(query) ||
       trainer.email?.toLowerCase().includes(query) ||
-      trainer.specialties?.some(spec => spec.toLowerCase().includes(query))
+      trainer.specialty?.toLowerCase().includes(query)
     )
   }) || []
 
@@ -112,9 +112,18 @@ export default function Trainers() {
   })
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await api.post('/trainers', data)
-      return response.data
+    mutationFn: async ({ trainerData, cvFile }: { trainerData: any, cvFile: File | null }) => {
+      const response = await api.post('/trainers', trainerData)
+      const newTrainer = response.data.data || response.data
+
+      if (cvFile && newTrainer.id) {
+        const formData = new FormData()
+        formData.append('cv', cvFile)
+        await api.post(`/trainers/${newTrainer.id}/upload-cv`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+      }
+      return newTrainer
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trainers'] })
@@ -147,7 +156,9 @@ export default function Trainers() {
     updateMutation.mutate({
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName'),
+      email: formData.get('email'),
       phone: formData.get('phone'),
+      specialty: formData.get('specialties'),
       bio: formData.get('bio'),
       cv: formData.get('cv'),
     })
@@ -156,15 +167,21 @@ export default function Trainers() {
   const handleCreateTrainer = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-    createMutation.mutate({
+    
+    const trainerData = {
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName'),
+      email: formData.get('email'),
       phone: formData.get('phone'),
-      specialties: formData.get('specialties') 
-        ? (formData.get('specialties') as string).split(',').map(s => s.trim())
-        : [],
+      specialty: formData.get('specialties'),
       bio: formData.get('bio'),
-      cv: formData.get('cv'),
+    }
+
+    const cvFile = formData.get('cv') as File
+    
+    createMutation.mutate({ 
+      trainerData, 
+      cvFile: cvFile.size > 0 ? cvFile : null 
     })
   }
 
@@ -237,8 +254,8 @@ export default function Trainers() {
                   <TableCell>{trainer.phone}</TableCell>
                   <TableCell>
                     <Box display="flex" gap={0.5} flexWrap="wrap">
-                      {trainer.specialties?.map((spec, idx) => (
-                        <Chip key={idx} label={spec} size="small" color="primary" />
+                      {trainer.specialty?.split(',').map((spec, idx) => (
+                        <Chip key={idx} label={spec.trim()} size="small" color="primary" />
                       ))}
                     </Box>
                   </TableCell>
@@ -269,8 +286,8 @@ export default function Trainers() {
                     {selectedTrainer.firstName} {selectedTrainer.lastName}
                   </Typography>
                   <Box display="flex" gap={0.5} flexWrap="wrap" mt={1}>
-                    {selectedTrainer.specialties?.map((spec, idx) => (
-                      <Chip key={idx} label={spec} size="small" color="primary" />
+                    {selectedTrainer.specialty?.split(',').map((spec, idx) => (
+                      <Chip key={idx} label={spec.trim()} size="small" color="primary" />
                     ))}
                   </Box>
                 </Paper>
@@ -424,8 +441,16 @@ export default function Trainers() {
                     name="email"
                     type="email"
                     defaultValue={selectedTrainer.email}
-                    disabled
-                    helperText="L'email ne peut pas être modifié"
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Spécialités"
+                    name="specialties"
+                    defaultValue={selectedTrainer.specialty}
+                    helperText="Séparez par des virgules (ex: Mathématiques, Physique)"
                   />
                 </Grid>
 
@@ -546,6 +571,15 @@ export default function Trainers() {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
+                  label="Email"
+                  name="email"
+                  type="email"
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
                   label="Téléphone"
                   name="phone"
                   required
@@ -572,9 +606,15 @@ export default function Trainers() {
               </Grid>
 
               <Grid item xs={12}>
-                <Alert severity="info">
-                  Vous pourrez uploader un CV (PDF) après la création du formateur
-                </Alert>
+                <Typography variant="subtitle2" gutterBottom>
+                  CV (PDF)
+                </Typography>
+                <TextField
+                  fullWidth
+                  type="file"
+                  name="cv"
+                  inputProps={{ accept: '.pdf,application/pdf' }}
+                />
               </Grid>
             </Grid>
           </DialogContent>

@@ -53,8 +53,6 @@ cd /var/www
 
 # Clonez le projet dans un NOUVEAU dossier (par exemple : ecole-formation)
 git clone https://github.com/youcef-ush/ecole_formation.git ecole-formation
-cd ecole-formation
-```
 
 ## 5. Configuration de l'Environnement
 
