@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Paper,
@@ -12,12 +12,17 @@ import {
   Divider,
   IconButton,
   Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
 } from '@mui/material';
 import {
   ArrowBack,
   School,
   Print,
   Badge as BadgeIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
 
@@ -93,8 +98,10 @@ interface Student {
 export default function StudentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [badgeOpen, setBadgeOpen] = useState(false);
   const [renewLoading, setRenewLoading] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
 
   const { data: student, isLoading, refetch } = useQuery<Student>({
     queryKey: ['student', id],
@@ -103,6 +110,32 @@ export default function StudentDetail() {
       return response.data.data || response.data;
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await api.put(`/students/${id}`, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student', id] });
+      setOpenEdit(false);
+      alert('Étudiant modifié avec succès');
+    },
+    onError: (error: any) => {
+      alert(`Erreur: ${error.response?.data?.message || 'Erreur lors de la modification'}`);
+    },
+  });
+
+  const handleUpdateStudent = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    updateMutation.mutate({
+      firstName: formData.get('firstName'),
+      lastName: formData.get('lastName'),
+      phone: formData.get('phone'),
+      address: formData.get('address'),
+    });
+  };
 
   const handlePrintBadge = () => {
     setBadgeOpen(true);
@@ -155,6 +188,13 @@ export default function StudentDetail() {
         <Typography variant="h4" sx={{ flexGrow: 1 }}>
           Détails de l'étudiant
         </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<EditIcon />}
+          onClick={() => setOpenEdit(true)}
+        >
+          Modifier
+        </Button>
         <Button
           variant="contained"
           startIcon={<BadgeIcon />}
@@ -456,6 +496,81 @@ export default function StudentDetail() {
         }}
       >
         <BadgeCard student={student} />
+      </Dialog>
+
+      {/* Dialog Modification */}
+      <Dialog open={openEdit} onClose={() => setOpenEdit(false)} maxWidth="md" fullWidth>
+        <form onSubmit={handleUpdateStudent}>
+          <DialogTitle>
+            <Typography variant="h6">Modifier l'Étudiant</Typography>
+          </DialogTitle>
+          <DialogContent>
+            {student && (
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="Prénom"
+                    name="firstName"
+                    defaultValue={student.enrollment?.firstName}
+                    required
+                  />
+                </Grid>
+
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="Nom"
+                    name="lastName"
+                    defaultValue={student.enrollment?.lastName}
+                    required
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Email"
+                    name="email"
+                    type="email"
+                    defaultValue={student.enrollment?.email}
+                    disabled
+                    helperText="L'email ne peut pas être modifié"
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Téléphone"
+                    name="phone"
+                    defaultValue={student.enrollment?.phone}
+                    required
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={3}
+                    label="Adresse"
+                    name="address"
+                    defaultValue={student.enrollment?.address || ''}
+                  />
+                </Grid>
+              </Grid>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenEdit(false)} disabled={updateMutation.isPending}>
+              Annuler
+            </Button>
+            <Button type="submit" variant="contained" color="primary" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogActions>
+        </form>
       </Dialog>
     </Box>
   );

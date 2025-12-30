@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import {
   Box,
   Card,
@@ -22,6 +23,9 @@ import {
   TableRow,
   InputAdornment,
   Grid,
+  IconButton,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   QrCodeScanner,
@@ -30,6 +34,8 @@ import {
   CreditCardOff,
   HowToReg,
   Search,
+  CameraAlt,
+  Keyboard,
 } from '@mui/icons-material';
 import { keyframes } from '@mui/system';
 import api from '../services/api';
@@ -105,6 +111,8 @@ interface AccessLog {
 }
 
 export default function QRScanner() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
@@ -117,6 +125,7 @@ export default function QRScanner() {
   const [loading, setLoading] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [showResult, setShowResult] = useState(false);
+  const [isCameraMode, setIsCameraMode] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const lastScanRef = useRef<string>('');
@@ -127,12 +136,56 @@ export default function QRScanner() {
     loadHistory();
   }, []);
 
+  // Initialize Camera Scanner
+  useEffect(() => {
+    let scanner: Html5QrcodeScanner | null = null;
+
+    if (isCameraMode) {
+      // Small delay to ensure the div is rendered
+      const timer = setTimeout(() => {
+        scanner = new Html5QrcodeScanner(
+          "reader",
+          { 
+            fps: 10, 
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+          },
+          /* verbose= */ false
+        );
+        
+        scanner.render(
+          (decodedText) => {
+            handleScan(decodedText);
+            // Optional: Pause scanning after success to avoid multiple scans
+            if (scanner) {
+              scanner.pause(true);
+              setTimeout(() => {
+                if (scanner) scanner.resume();
+              }, 2000);
+            }
+          },
+          (errorMessage) => {
+            // parse error, ignore it.
+          }
+        );
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+
+    return () => {
+      if (scanner) {
+        scanner.clear().catch(error => console.error("Failed to clear scanner", error));
+      }
+    };
+  }, [isCameraMode]);
+
   // Auto-focus input when course is selected
   useEffect(() => {
-    if (selectedCourseId && inputRef.current && !showResult) {
+    if (selectedCourseId && inputRef.current && !showResult && !isCameraMode) {
       inputRef.current.focus();
     }
-  }, [selectedCourseId, showResult]);
+  }, [selectedCourseId, showResult, isCameraMode]);
 
   const loadCourses = async () => {
     try {
@@ -275,7 +328,7 @@ export default function QRScanner() {
         lastScanRef.current = '';
         setShowResult(false);
         setScanResult(null);
-        if (inputRef.current) inputRef.current.focus();
+        if (inputRef.current && !isCameraMode) inputRef.current.focus();
       }, 4000);
     }
   };
@@ -299,246 +352,272 @@ export default function QRScanner() {
   const dismissResult = () => {
     setShowResult(false);
     setScanResult(null);
-    lastScanRef.current = '';
-    if (inputRef.current) inputRef.current.focus();
+    // Refocus input after dismissing result if in manual mode
+    if (!isCameraMode && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
   };
 
   return (
-    <Box sx={{ p: 2, position: 'relative' }}>
-      <Box sx={{ maxWidth: 600, mx: 'auto', mb: 4 }}>
-        <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 600 }}>
-          <QrCodeScanner /> Scanner Accès
-        </Typography>
+    <Box sx={{ p: isMobile ? 1 : 3, maxWidth: 1200, mx: 'auto' }}>
+      <Typography variant={isMobile ? "h5" : "h4"} gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <QrCodeScanner fontSize="large" color="primary" />
+        Scanner QR Code
+      </Typography>
 
-        {/* Course Selection */}
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <FormControl fullWidth>
-              <InputLabel>Formation</InputLabel>
-              <Select
-                value={selectedCourseId || ''}
-                label="Formation"
-                onChange={(e) => setSelectedCourseId(Number(e.target.value))}
-                disabled={loading}
-              >
-                {courses.map((course) => (
-                  <MenuItem key={course.id} value={course.id}>
-                    {course.title} - {course.type}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </CardContent>
-        </Card>
+      <Grid container spacing={3}>
+        {/* Scanner Section */}
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: '100%', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+            <CardContent>
+              <Box sx={{ mb: 3 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Sélectionner une formation (Optionnel)</InputLabel>
+                  <Select
+                    value={selectedCourseId || ''}
+                    label="Sélectionner une formation (Optionnel)"
+                    onChange={(e) => setSelectedCourseId(e.target.value ? Number(e.target.value) : null)}
+                  >
+                    <MenuItem value="">Toutes les formations</MenuItem>
+                    {courses.map((course) => (
+                      <MenuItem key={course.id} value={course.id}>
+                        {course.title}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
 
-        {/* Scanner Controls */}
-        <Card sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5' }}>
-          <form onSubmit={handleManualSubmit}>
-            <TextField
-              fullWidth
-              label="Scanner le code QR (ou saisir manuellement)"
-              value={manualCode}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              inputRef={inputRef}
-              disabled={!selectedCourseId || loading}
-              autoFocus
-              placeholder="Cliquez ici et scannez avec la douchette"
-              helperText={!selectedCourseId ? "Sélectionnez une formation d'abord" : "Le curseur doit être dans ce champ pour scanner"}
-            />
-            <Button type="submit" sx={{ display: 'none' }}>Scanner</Button>
-          </form>
-        </Card>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                <Button
+                  variant={isCameraMode ? "contained" : "outlined"}
+                  color="primary"
+                  startIcon={isCameraMode ? <Keyboard /> : <CameraAlt />}
+                  onClick={() => setIsCameraMode(!isCameraMode)}
+                  fullWidth
+                >
+                  {isCameraMode ? "Utiliser le Scanner USB / Clavier" : "Utiliser la Caméra"}
+                </Button>
+              </Box>
 
-        {/* Loading */}
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress size={60} />
-          </Box>
-        )}
+              {isCameraMode ? (
+                <Box sx={{ mt: 2, minHeight: 300 }}>
+                  <div id="reader" style={{ width: '100%' }}></div>
+                  <Typography variant="caption" color="text.secondary" align="center" display="block" sx={{ mt: 1 }}>
+                    Autorisez l'accès à la caméra pour scanner
+                  </Typography>
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    border: '2px dashed',
+                    borderColor: 'primary.main',
+                    borderRadius: 2,
+                    p: 4,
+                    textAlign: 'center',
+                    bgcolor: 'rgba(25, 118, 210, 0.04)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <QrCodeScanner sx={{ fontSize: 60, color: 'primary.main', mb: 2, opacity: 0.8 }} />
+                  
+                  <Typography variant="h6" gutterBottom>
+                    Prêt à scanner
+                  </Typography>
+                  
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    Utilisez votre douchette ou entrez le code manuellement
+                  </Typography>
 
-        {/* Error */}
-        <Fade in={!!error}>
-          <Box
-            sx={{
-              mt: 2,
-              p: 3,
-              bgcolor: '#fff3e0',
-              borderRadius: 2,
-              border: '2px solid #ff9800',
-              display: error ? 'block' : 'none',
-            }}
-          >
-            <Typography color="warning.dark" variant="h6">
-              ⚠️ {error}
+                  <form onSubmit={handleManualSubmit}>
+                    <TextField
+                      inputRef={inputRef}
+                      fullWidth
+                      value={manualCode}
+                      onChange={handleInputChange}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Code QR..."
+                      variant="outlined"
+                      autoFocus
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <QrCodeScanner color="action" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: loading && <CircularProgress size={20} />,
+                      }}
+                      sx={{ mt: 2 }}
+                    />
+                  </form>
+                </Box>
+              )}
+
+              {error && (
+                <Fade in>
+                  <Paper sx={{ mt: 2, p: 2, bgcolor: '#ffebee', color: '#c62828' }}>
+                    <Typography variant="body2" align="center">
+                      {error}
+                    </Typography>
+                  </Paper>
+                </Fade>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* History Section */}
+        <Grid item xs={12} md={6}>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Search /> Historique des scans
             </Typography>
+            
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Rechercher..."
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6} md={4}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Statut</InputLabel>
+                  <Select
+                    value={historyStatus}
+                    label="Statut"
+                    onChange={(e) => setHistoryStatus(e.target.value)}
+                  >
+                    <MenuItem value="all">Tous</MenuItem>
+                    <MenuItem value="GRANTED">Accordé</MenuItem>
+                    <MenuItem value="DENIED">Refusé</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={6} md={4}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Formation</InputLabel>
+                  <Select
+                    value={historyCourse}
+                    label="Formation"
+                    onChange={(e) => setHistoryCourse(e.target.value)}
+                  >
+                    <MenuItem value="all">Toutes</MenuItem>
+                    {courses.map((course) => (
+                      <MenuItem key={course.id} value={course.id.toString()}>
+                        {course.title}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  label="Date"
+                  value={historyDate}
+                  onChange={(e) => setHistoryDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+            </Grid>
           </Box>
-        </Fade>
-      </Box>
 
-      {/* Recent Scans History */}
-      <Box sx={{ mt: 4 }}>
-        <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-          Historique des scans
-        </Typography>
+          <TableContainer component={Paper} sx={{ boxShadow: '0 4px 20px rgba(0,0,0,0.08)', borderRadius: 2, maxHeight: 500 }}>
+            <Table stickyHeader size={isMobile ? "small" : "medium"}>
+              <TableHead>
+                <TableRow sx={{ bgcolor: '#f8f9fa' }}>
+                  <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>Heure</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>Nom</TableCell>
+                  {!isMobile && <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>Formation</TableCell>}
+                  <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>Statut</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {(() => {
+                  const filteredHistory = history.filter((log) => {
+                    const matchesSearch = !historySearch || 
+                      `${log.student?.enrollment?.firstName} ${log.student?.enrollment?.lastName}`.toLowerCase().includes(historySearch.toLowerCase()) ||
+                      log.student?.qrCode?.toLowerCase().includes(historySearch.toLowerCase());
+                    
+                    const matchesStatus = historyStatus === 'all' || log.status === historyStatus;
+                    
+                    const matchesCourse = historyCourse === 'all' || log.courseId.toString() === historyCourse;
+                    
+                    const matchesDate = !historyDate || new Date(log.accessTime).toISOString().split('T')[0] === historyDate;
 
-        {/* History Filters */}
-        <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Rechercher nom ou code QR..."
-                value={historySearch}
-                onChange={(e) => setHistorySearch(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Grid>
-            <Grid item xs={6} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Statut</InputLabel>
-                <Select
-                  value={historyStatus}
-                  label="Statut"
-                  onChange={(e) => setHistoryStatus(e.target.value)}
-                >
-                  <MenuItem value="all">Tous</MenuItem>
-                  <MenuItem value="GRANTED">Accordé</MenuItem>
-                  <MenuItem value="DENIED">Refusé</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Formation</InputLabel>
-                <Select
-                  value={historyCourse}
-                  label="Formation"
-                  onChange={(e) => setHistoryCourse(e.target.value)}
-                >
-                  <MenuItem value="all">Toutes les formations</MenuItem>
-                  {courses.map((course) => (
-                    <MenuItem key={course.id} value={course.id.toString()}>
-                      {course.title}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                type="date"
-                label="Date"
-                value={historyDate}
-                onChange={(e) => setHistoryDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-          </Grid>
-        </Paper>
+                    return matchesSearch && matchesStatus && matchesCourse && matchesDate;
+                  });
 
-        <TableContainer component={Paper} sx={{ boxShadow: '0 4px 20px rgba(0,0,0,0.08)', borderRadius: 2 }}>
-          <Table stickyHeader>
-            <TableHead>
-              <TableRow sx={{ bgcolor: '#f8f9fa' }}>
-                <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>Date & Heure</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>Nom</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>Code QR</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>Formation</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>Statut</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>Détail</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(() => {
-                const filteredHistory = history.filter((log) => {
-                  const matchesSearch = !historySearch || 
-                    `${log.student?.enrollment?.firstName} ${log.student?.enrollment?.lastName}`.toLowerCase().includes(historySearch.toLowerCase()) ||
-                    log.student?.qrCode?.toLowerCase().includes(historySearch.toLowerCase());
-                  
-                  const matchesStatus = historyStatus === 'all' || log.status === historyStatus;
-                  
-                  const matchesCourse = historyCourse === 'all' || log.courseId.toString() === historyCourse;
-                  
-                  const matchesDate = !historyDate || new Date(log.accessTime).toISOString().split('T')[0] === historyDate;
+                  if (filteredHistory.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={isMobile ? 3 : 4} align="center" sx={{ py: 8 }}>
+                          <Typography color="text.secondary">Aucun scan trouvé</Typography>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
 
-                  return matchesSearch && matchesStatus && matchesCourse && matchesDate;
-                });
-
-                if (filteredHistory.length === 0) {
-                  return (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
-                        <Typography color="text.secondary">Aucun scan ne correspond à vos critères</Typography>
+                  return filteredHistory.map((log) => (
+                    <TableRow 
+                      key={log.id}
+                      hover
+                      sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                    >
+                      <TableCell>
+                        <Box>
+                          <Typography variant="body2" fontWeight={600}>
+                            {new Date(log.accessTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(log.accessTime).toLocaleDateString('fr-FR')}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>
+                        {log.student?.enrollment 
+                          ? `${log.student.enrollment.firstName} ${log.student.enrollment.lastName}`
+                          : 'Étudiant inconnu'}
+                        {isMobile && (
+                          <Typography variant="caption" display="block" color="text.secondary">
+                            {log.course?.title}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      {!isMobile && (
+                        <TableCell>
+                          {log.course?.title || 'Formation inconnue'}
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        {log.status === 'GRANTED' ? (
+                          <CheckCircle color="success" />
+                        ) : (
+                          <Cancel color="error" />
+                        )}
                       </TableCell>
                     </TableRow>
-                  );
-                }
-
-                return filteredHistory.map((log) => (
-                  <TableRow 
-                    key={log.id}
-                    hover
-                    sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                  >
-                    <TableCell>
-                      <Box>
-                        <Typography variant="body2" fontWeight={600}>
-                          {new Date(log.accessTime).toLocaleDateString('fr-FR')}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {new Date(log.accessTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>
-                      {log.student?.enrollment 
-                        ? `${log.student.enrollment.firstName} ${log.student.enrollment.lastName}`
-                        : 'Étudiant inconnu'}
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="caption" sx={{ fontFamily: 'monospace', bgcolor: '#f0f0f0', px: 1, py: 0.5, borderRadius: 1 }}>
-                        {log.student?.qrCode || 'N/A'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {log.course?.title || 'Formation inconnue'}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={log.status === 'GRANTED' ? 'ACCORDÉ' : 'REFUSÉ'}
-                        size="small"
-                        color={log.status === 'GRANTED' ? 'success' : 'error'}
-                        sx={{ fontWeight: 'bold', minWidth: 80 }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {log.status === 'GRANTED' ? (
-                        <Typography variant="body2" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <CheckCircle sx={{ fontSize: 16 }} /> Accès autorisé
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" color="error.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 500 }}>
-                          <Cancel sx={{ fontSize: 16 }} /> {log.denialReason || 'Accès refusé'}
-                        </Typography>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ));
-              })()}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
+                  ));
+                })()}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Grid>
+      </Grid>
 
       {/* Animated Scan Result - Full Screen Overlay */}
       {showResult && scanResult && (
@@ -604,6 +683,7 @@ export default function QRScanner() {
                   mb: 4,
                   fontWeight: 600,
                   textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+
                 }}
               >
                 {scanResult.student.firstName} {scanResult.student.lastName}

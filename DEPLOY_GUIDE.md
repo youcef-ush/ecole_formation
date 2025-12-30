@@ -49,7 +49,7 @@ Clonez votre dépôt GitHub sur le serveur :
 cd /var/www
 # Si le dossier n'existe pas
 mkdir -p /var/www
-cd /var/www
+cd /var/www/ecole-formation
 
 # Clonez le projet dans un NOUVEAU dossier (par exemple : ecole-formation)
 git clone https://github.com/youcef-ush/ecole_formation.git ecole-formation
@@ -80,7 +80,7 @@ JWT_REFRESH_SECRET=B2cD5eF8gH1iJ4kL7mN0oP3qR6sT9uV2wX5yZ8aB1cD4eF7gH0iJ3kL6mN9oP
 Lancez les conteneurs en mode production :
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build
+
 ```
 
 ## 7. Vérification

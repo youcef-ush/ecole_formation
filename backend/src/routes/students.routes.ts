@@ -293,15 +293,50 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
 router.put('/:id', async (req: AuthRequest, res: Response, next) => {
   try {
     const { id } = req.params;
-    const { isActive, status } = req.body;
+    const { isActive, status, firstName, lastName, email, phone, address } = req.body;
 
     const studentRepo = AppDataSource.getRepository(Student);
-    const student = await studentRepo.findOne({ where: { id: parseInt(id) } });
+    const enrollmentRepo = AppDataSource.getRepository(Enrollment);
+    
+    const student = await studentRepo.findOne({ 
+      where: { id: parseInt(id) },
+      relations: ['enrollment']
+    });
 
     if (!student) {
       throw new AppError('Étudiant non trouvé', 404);
     }
 
+    // Mise à jour des informations de l'étudiant (Enrollment)
+    if (student.enrollment) {
+      let enrollmentUpdated = false;
+      if (firstName !== undefined) {
+        student.enrollment.firstName = firstName;
+        enrollmentUpdated = true;
+      }
+      if (lastName !== undefined) {
+        student.enrollment.lastName = lastName;
+        enrollmentUpdated = true;
+      }
+      if (email !== undefined) {
+        student.enrollment.email = email;
+        enrollmentUpdated = true;
+      }
+      if (phone !== undefined) {
+        student.enrollment.phone = phone;
+        enrollmentUpdated = true;
+      }
+      if (address !== undefined) {
+        student.enrollment.address = address;
+        enrollmentUpdated = true;
+      }
+
+      if (enrollmentUpdated) {
+        await enrollmentRepo.save(student.enrollment);
+      }
+    }
+
+    // Mise à jour du statut de l'étudiant
     if (isActive !== undefined) student.isActive = isActive;
     if (status !== undefined) student.status = status;
 
