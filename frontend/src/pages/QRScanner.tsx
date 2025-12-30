@@ -14,7 +14,6 @@ import {
   TextField,
   Fade,
   Paper,
-  Chip,
   Table,
   TableBody,
   TableCell,
@@ -23,7 +22,6 @@ import {
   TableRow,
   InputAdornment,
   Grid,
-  IconButton,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
@@ -164,7 +162,7 @@ export default function QRScanner() {
               }, 2000);
             }
           },
-          (errorMessage) => {
+          (_errorMessage) => {
             // parse error, ignore it.
           }
         );
