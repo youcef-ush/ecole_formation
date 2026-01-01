@@ -317,9 +317,9 @@ export default function PaymentReceipt({
           <div class="header">
             <div class="header-content">
               <div style="text-align: center; margin-bottom: 10px;">
-                <img src="/logo.png" alt="Inspired Academy" style="max-height: 60px; max-width: 150px;" />
+                <img src="/dashboard/logo.png" alt="Inspired Academy" style="max-height: 60px; max-width: 150px;" />
               </div>
-              <h1>📚 Inspired Academy By Nana</h1>
+              <h1>Inspired Academy By Nana</h1>
               <div class="subtitle">Centre de Formation et d'Excellence</div>
               <div class="school-info">
                 <div><strong>📍 Adresse:</strong> Amroussa - Bouinan Blida</div>
