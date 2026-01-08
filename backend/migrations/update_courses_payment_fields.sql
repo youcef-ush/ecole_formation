@@ -29,7 +29,7 @@ WHERE type::text LIKE 'Soutien Scolaire%';
 UPDATE courses 
 SET "durationMonths" = 2
 WHERE type::text = 'Formation Qualifiante' 
-  AND category::text IN ('Cuisine', 'Couture', 'Développement personnel')
+  AND category::text IN ('Cuisine', 'Couture', 'Atelier')
   AND "durationMonths" IS NULL
   AND "durationHours" <= 120;
 

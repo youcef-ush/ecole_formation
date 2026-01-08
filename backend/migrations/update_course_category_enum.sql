@@ -11,7 +11,7 @@ UPDATE courses
 SET category = CASE 
     WHEN category LIKE 'PROFESSIONAL%' THEN 'Formation professionnelle'
     WHEN category LIKE 'TUTORING%' THEN 'Soutien scolaire'
-    WHEN category LIKE 'PERSONAL%' THEN 'Développement personnel'
+    WHEN category LIKE 'PERSONAL%' THEN 'Atelier'
     ELSE category
 END
 WHERE category IS NOT NULL;
@@ -20,5 +20,5 @@ WHERE category IS NOT NULL;
 DROP TYPE IF EXISTS course_category CASCADE;
 
 -- 5. Ajouter un commentaire
-COMMENT ON COLUMN courses.category IS 'Catégorie principale de la formation : Formation professionnelle, Soutien scolaire, ou Développement personnel';
+COMMENT ON COLUMN courses.category IS 'Catégorie principale de la formation : Formation professionnelle, Soutien scolaire, ou Atelier';
 

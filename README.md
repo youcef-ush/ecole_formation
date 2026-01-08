@@ -2,7 +2,7 @@
 
 ## 📋 Vue d'ensemble
 
-**Inspired Academy by Nana** est une solution SaaS (Software as a Service) moderne conçue pour la gestion administrative complète d'une école de formation. Cette application couvre les cours de soutien scolaire et les formations professionnelles (cuisine, développement personnel, etc.).
+**Inspired Academy by Nana** est une solution SaaS (Software as a Service) moderne conçue pour la gestion administrative complète d'une école de formation. Cette application couvre les cours de soutien scolaire et les formations professionnelles (cuisine, ateliers, etc.).
 
 ### 🎯 Vision du Projet
 

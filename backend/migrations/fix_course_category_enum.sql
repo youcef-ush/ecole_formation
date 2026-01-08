@@ -7,7 +7,7 @@ DROP TYPE IF EXISTS course_category_new CASCADE;
 CREATE TYPE course_category_new AS ENUM (
     'Soutien scolaire',
     'Formation professionnelle',
-    'Développement personnel',
+    'Atelier',
     'Langues',
     'Cuisine',
     'Couture',

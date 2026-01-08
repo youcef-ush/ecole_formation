@@ -16,7 +16,7 @@ export enum PriceModel {
 export enum CourseCategory {
   PROFESSIONAL = "Formation professionnelle",
   TUTORING = "Soutien scolaire",
-  PERSONAL = "Développement personnel"
+  PERSONAL = "Atelier"
 }
 
 @Entity("courses")
@@ -45,6 +45,9 @@ export class Course {
 
   @Column({ type: "varchar", length: 255, nullable: true })
   category: string;
+
+  @Column({ type: "date", nullable: true })
+  workshopDate: Date;
 
   @Column({ name: "duration_months", nullable: true })
   durationMonths: number;

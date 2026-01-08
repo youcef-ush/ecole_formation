@@ -54,7 +54,7 @@ DO $$ BEGIN
     CREATE TYPE course_category AS ENUM (
         'Soutien scolaire',
         'Formation professionnelle',
-        'Développement personnel',
+        'Atelier',
         'Langues',
         'Cuisine',
         'Couture',

@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import {
   Box,
   Typography,
@@ -17,174 +17,191 @@ import {
   DialogActions,
   TextField,
   InputAdornment,
-} from '@mui/material'
-import AddIcon from '@mui/icons-material/Add'
-import SearchIcon from '@mui/icons-material/Search'
-import api from '../services/api'
+  MenuItem,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
+import api from "../services/api";
 
 interface Course {
-  id: number
-  title: string
-  description: string
-  type: string
-  category: string
-  durationMonths: number
-  price: number
-  monthlyPrice?: number
-  totalPrice: number
-  trainerId?: number
-  isActive: boolean
+  id: number;
+  title: string;
+  description: string;
+  type: string;
+  category: string;
+  durationMonths: number;
+  price: number;
+  monthlyPrice?: number;
+  totalPrice: number;
+  trainerId?: number;
+  isActive: boolean;
+  workshopDate?: string;
 }
 
 interface Trainer {
-  id: number
-  firstName: string
-  lastName: string
-  specialty: string
+  id: number;
+  firstName: string;
+  lastName: string;
+  specialty: string;
 }
 
 export default function Courses() {
-  const queryClient = useQueryClient()
-  const [openDetails, setOpenDetails] = useState(false)
-  const [openEdit, setOpenEdit] = useState(false)
-  const [openCreate, setOpenCreate] = useState(false)
-  const [openDelete, setOpenDelete] = useState(false)
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('')
+  const queryClient = useQueryClient();
+  const [openDetails, setOpenDetails] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openCreate, setOpenCreate] = useState(false);
+  const [openDelete, setOpenDelete] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
 
   const { data: courses, isLoading } = useQuery<Course[]>({
-    queryKey: ['courses'],
+    queryKey: ["courses"],
     queryFn: async () => {
-      const response = await api.get('/courses')
-      return response.data.data || response.data
+      const response = await api.get("/courses");
+      return response.data.data || response.data;
     },
-  })
+  });
 
   const { data: trainers } = useQuery<Trainer[]>({
-    queryKey: ['trainers'],
+    queryKey: ["trainers"],
     queryFn: async () => {
-      const response = await api.get('/trainers')
-      return response.data.data || response.data
+      const response = await api.get("/trainers");
+      return response.data.data || response.data;
     },
-  })
+  });
 
-  const filteredCourses = courses?.filter((course) => {
-    if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
-    return (
-      course.title?.toLowerCase().includes(query) ||
-      course.description?.toLowerCase().includes(query) ||
-      course.type?.toLowerCase().includes(query)
-    )
-  }) || []
+  const filteredCourses =
+    courses?.filter((course) => {
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        course.title?.toLowerCase().includes(query) ||
+        course.description?.toLowerCase().includes(query) ||
+        course.type?.toLowerCase().includes(query)
+      );
+    }) || [];
 
   const handleCourseClick = (course: Course) => {
-    setSelectedCourse(course)
-    setOpenDetails(true)
-  }
+    setSelectedCourse(course);
+    setOpenDetails(true);
+  };
 
   const handleEditClick = () => {
-    setOpenDetails(false)
-    setOpenEdit(true)
-  }
+    setOpenDetails(false);
+    setOpenEdit(true);
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await api.post('/courses', data)
-      return response.data
+      const response = await api.post("/courses", data);
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['courses'] })
-      setOpenCreate(false)
-      setSelectedCategory('')
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      setOpenCreate(false);
+      setSelectedCategory("");
     },
-  })
+  });
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await api.put(`/courses/${selectedCourse?.id}`, data)
-      return response.data
+      const response = await api.put(`/courses/${selectedCourse?.id}`, data);
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['courses'] })
-      setOpenEdit(false)
-      setSelectedCourse(null)
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      setOpenEdit(false);
+      setSelectedCourse(null);
     },
-  })
+  });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await api.delete(`/courses/${id}`)
-      return response.data
+      const response = await api.delete(`/courses/${id}`);
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['courses'] })
-      setOpenDelete(false)
-      setOpenDetails(false)
-      setSelectedCourse(null)
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      setOpenDelete(false);
+      setOpenDetails(false);
+      setSelectedCourse(null);
     },
-  })
+  });
 
   const handleCreateCourse = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const category = formData.get('category') as string
-    const trainerId = formData.get('trainerId') as string
-    
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const category = formData.get("category") as string;
+    const trainerId = formData.get("trainerId") as string;
+    const durationMonths = formData.get("durationMonths");
+
     createMutation.mutate({
-      title: formData.get('title'),
-      description: formData.get('description'),
+      title: formData.get("title"),
+      description: formData.get("description"),
       category: category,
-      durationMonths: parseInt(formData.get('durationMonths') as string),
-      price: parseFloat(formData.get('price') as string),
+      durationMonths: durationMonths ? parseInt(durationMonths as string) : 0,
+      workshopDate: formData.get("workshopDate"),
+      price: parseFloat(formData.get("price") as string),
       trainerId: trainerId ? parseInt(trainerId) : null,
-    })
-  }
+    });
+  };
 
   const handleUpdateCourse = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const trainerId = formData.get('trainerId') as string
-    
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const trainerId = formData.get("trainerId") as string;
+    const durationMonths = formData.get("durationMonths");
+
     updateMutation.mutate({
-      title: formData.get('title'),
-      description: formData.get('description'),
-      price: parseFloat(formData.get('price') as string),
-      durationMonths: parseInt(formData.get('durationMonths') as string),
+      title: formData.get("title"),
+      description: formData.get("description"),
+      price: parseFloat(formData.get("price") as string),
+      durationMonths: durationMonths ? parseInt(durationMonths as string) : 0,
+      workshopDate: formData.get("workshopDate"),
       trainerId: trainerId ? parseInt(trainerId) : null,
-    })
-  }
+    });
+  };
 
   const handleDeleteClick = (course: Course, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setSelectedCourse(course)
-    setOpenDelete(true)
-  }
+    e.stopPropagation();
+    setSelectedCourse(course);
+    setOpenDelete(true);
+  };
 
   const handleConfirmDelete = () => {
     if (selectedCourse) {
-      deleteMutation.mutate(selectedCourse.id)
+      deleteMutation.mutate(selectedCourse.id);
     }
-  }
+  };
 
   const handleEditClickFromCard = (course: Course, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setSelectedCourse(course)
-    setOpenEdit(true)
-  }
+    e.stopPropagation();
+    setSelectedCourse(course);
+    setOpenEdit(true);
+  };
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="400px"
+      >
         <CircularProgress />
       </Box>
-    )
+    );
   }
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Box>
           <Typography variant="h4" gutterBottom fontWeight={600}>
             Formations
@@ -224,17 +241,22 @@ export default function Courses() {
           filteredCourses.map((course) => (
             <Grid item xs={12} md={6} lg={4} key={course.id}>
               <Card
-                sx={{ cursor: 'pointer', '&:hover': { boxShadow: 6 } }}
+                sx={{ cursor: "pointer", "&:hover": { boxShadow: 6 } }}
                 onClick={() => handleCourseClick(course)}
               >
                 <CardContent>
-                  <Box display="flex" justifyContent="space-between" alignItems="start" mb={1}>
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="start"
+                    mb={1}
+                  >
                     <Typography variant="h6" fontWeight={600}>
                       {course.title}
                     </Typography>
                     <Chip
-                      label={course.isActive ? 'Actif' : 'Inactif'}
-                      color={course.isActive ? 'success' : 'default'}
+                      label={course.isActive ? "Actif" : "Inactif"}
+                      color={course.isActive ? "success" : "default"}
                       size="small"
                     />
                   </Box>
@@ -243,17 +265,35 @@ export default function Courses() {
                     {course.description}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Durée: {course.durationMonths} mois
+                    {course.category === "Atelier"
+                      ? `Date: ${
+                          course.workshopDate
+                            ? new Date(course.workshopDate).toLocaleDateString()
+                            : "?"
+                        }`
+                      : `Durée: ${course.durationMonths} mois`}
                   </Typography>
-                  <Typography variant="h6" color="primary" fontWeight={600} mt={1}>
+                  <Typography
+                    variant="h6"
+                    color="primary"
+                    fontWeight={600}
+                    mt={1}
+                  >
                     {course.price?.toLocaleString()} DA
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={(e) => handleEditClickFromCard(course, e)}>
+                  <Button
+                    size="small"
+                    onClick={(e) => handleEditClickFromCard(course, e)}
+                  >
                     Modifier
                   </Button>
-                  <Button size="small" color="error" onClick={(e) => handleDeleteClick(course, e)}>
+                  <Button
+                    size="small"
+                    color="error"
+                    onClick={(e) => handleDeleteClick(course, e)}
+                  >
                     Supprimer
                   </Button>
                 </CardActions>
@@ -262,15 +302,22 @@ export default function Courses() {
           ))
         ) : (
           <Grid item xs={12}>
-            <Paper sx={{ p: 4, textAlign: 'center' }}>
-              <Typography color="text.secondary">Aucune formation trouvée</Typography>
+            <Paper sx={{ p: 4, textAlign: "center" }}>
+              <Typography color="text.secondary">
+                Aucune formation trouvée
+              </Typography>
             </Paper>
           </Grid>
         )}
       </Grid>
 
       {/* Dialog de détails formation */}
-      <Dialog open={openDetails} onClose={() => setOpenDetails(false)} maxWidth="md" fullWidth>
+      <Dialog
+        open={openDetails}
+        onClose={() => setOpenDetails(false)}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>
           <Typography variant="h6">Détails de la Formation</Typography>
         </DialogTitle>
@@ -278,15 +325,19 @@ export default function Courses() {
           {selectedCourse && (
             <Grid container spacing={3} sx={{ mt: 1 }}>
               <Grid item xs={12}>
-                <Paper sx={{ p: 2, bgcolor: 'primary.50' }}>
+                <Paper sx={{ p: 2, bgcolor: "primary.50" }}>
                   <Typography variant="h5" color="primary" gutterBottom>
                     {selectedCourse.title}
                   </Typography>
                   <Box display="flex" gap={1}>
-                    <Chip label={selectedCourse.type} color="primary" size="small" />
                     <Chip
-                      label={selectedCourse.isActive ? 'Actif' : 'Inactif'}
-                      color={selectedCourse.isActive ? 'success' : 'default'}
+                      label={selectedCourse.type}
+                      color="primary"
+                      size="small"
+                    />
+                    <Chip
+                      label={selectedCourse.isActive ? "Actif" : "Inactif"}
+                      color={selectedCourse.isActive ? "success" : "default"}
                       size="small"
                     />
                   </Box>
@@ -311,10 +362,16 @@ export default function Courses() {
 
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">
-                  Durée
+                  {selectedCourse.category === "Atelier" ? "Date" : "Durée"}
                 </Typography>
                 <Typography variant="body1" fontWeight={600}>
-                  {selectedCourse.durationMonths} mois
+                  {selectedCourse.category === "Atelier"
+                    ? selectedCourse.workshopDate
+                      ? new Date(
+                          selectedCourse.workshopDate
+                        ).toLocaleDateString()
+                      : "Non définie"
+                    : `${selectedCourse.durationMonths} mois`}
                 </Typography>
               </Grid>
 
@@ -331,8 +388,10 @@ export default function Courses() {
                 <Typography variant="caption" color="text.secondary">
                   Description
                 </Typography>
-                <Paper sx={{ p: 2, bgcolor: 'grey.50', mt: 1 }}>
-                  <Typography variant="body2">{selectedCourse.description}</Typography>
+                <Paper sx={{ p: 2, bgcolor: "grey.50", mt: 1 }}>
+                  <Typography variant="body2">
+                    {selectedCourse.description}
+                  </Typography>
                 </Paper>
               </Grid>
             </Grid>
@@ -347,7 +406,12 @@ export default function Courses() {
       </Dialog>
 
       {/* Dialog de modification formation */}
-      <Dialog open={openEdit} onClose={() => setOpenEdit(false)} maxWidth="md" fullWidth>
+      <Dialog
+        open={openEdit}
+        onClose={() => setOpenEdit(false)}
+        maxWidth="md"
+        fullWidth
+      >
         <form onSubmit={handleUpdateCourse}>
           <DialogTitle>
             <Typography variant="h6">Modifier la Formation</Typography>
@@ -378,14 +442,32 @@ export default function Courses() {
                 </Grid>
 
                 <Grid item xs={6}>
-                  <TextField
-                    fullWidth
-                    type="number"
-                    label="Durée (mois)"
-                    name="durationMonths"
-                    defaultValue={selectedCourse.durationMonths}
-                    required
-                  />
+                  {selectedCourse.category === "Atelier" ? (
+                    <TextField
+                      fullWidth
+                      type="date"
+                      label="Date de l'atelier"
+                      name="workshopDate"
+                      defaultValue={
+                        selectedCourse.workshopDate
+                          ? new Date(selectedCourse.workshopDate)
+                              .toISOString()
+                              .split("T")[0]
+                          : ""
+                      }
+                      required
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  ) : (
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Durée (mois)"
+                      name="durationMonths"
+                      defaultValue={selectedCourse.durationMonths}
+                      required
+                    />
+                  )}
                 </Grid>
 
                 <Grid item xs={6}>
@@ -405,15 +487,17 @@ export default function Courses() {
                     fullWidth
                     label="Formateur"
                     name="trainerId"
-                    defaultValue={selectedCourse.trainerId || ''}
-                    SelectProps={{ native: true }}
+                    defaultValue={selectedCourse.trainerId || ""}
                     helperText="Sélectionnez le formateur (optionnel)"
                   >
-                    <option value="">-- Aucun formateur assigné --</option>
+                    <MenuItem value="">
+                      <em>-- Aucun formateur assigné --</em>
+                    </MenuItem>
                     {trainers?.map((trainer) => (
-                      <option key={trainer.id} value={trainer.id}>
-                        {trainer.firstName} {trainer.lastName} - {trainer.specialty}
-                      </option>
+                      <MenuItem key={trainer.id} value={trainer.id}>
+                        {trainer.firstName} {trainer.lastName} -{" "}
+                        {trainer.specialty}
+                      </MenuItem>
                     ))}
                   </TextField>
                 </Grid>
@@ -432,18 +516,31 @@ export default function Courses() {
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenEdit(false)} disabled={updateMutation.isPending}>
+            <Button
+              onClick={() => setOpenEdit(false)}
+              disabled={updateMutation.isPending}
+            >
               Annuler
             </Button>
-            <Button type="submit" variant="contained" color="primary" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "Enregistrement..." : "Enregistrer"}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
 
       {/* Dialog de création formation */}
-      <Dialog open={openCreate} onClose={() => setOpenCreate(false)} maxWidth="md" fullWidth>
+      <Dialog
+        open={openCreate}
+        onClose={() => setOpenCreate(false)}
+        maxWidth="md"
+        fullWidth
+      >
         <form onSubmit={handleCreateCourse}>
           <DialogTitle>
             <Typography variant="h6">Créer une Nouvelle Formation</Typography>
@@ -481,12 +578,15 @@ export default function Courses() {
                   required
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  SelectProps={{ native: true }}
                 >
-                  <option value="">-- Choisir une catégorie --</option>
-                  <option value="Formation professionnelle">Formation professionnelle</option>
-                  <option value="Soutien scolaire">Soutien scolaire</option>
-                  <option value="Développement personnel">Développement personnel</option>
+                  <MenuItem value="">
+                    <em>-- Choisir une catégorie --</em>
+                  </MenuItem>
+                  <MenuItem value="Formation professionnelle">
+                    Formation professionnelle
+                  </MenuItem>
+                  <MenuItem value="Soutien scolaire">Soutien scolaire</MenuItem>
+                  <MenuItem value="Atelier">Atelier</MenuItem>
                 </TextField>
               </Grid>
 
@@ -496,27 +596,42 @@ export default function Courses() {
                   fullWidth
                   label="Formateur"
                   name="trainerId"
-                  SelectProps={{ native: true }}
                   helperText="Sélectionnez le formateur qui assurera cette formation (optionnel)"
+                  defaultValue=""
                 >
-                  <option value="">-- Aucun formateur assigné --</option>
+                  <MenuItem value="">
+                    <em>-- Aucun formateur assigné --</em>
+                  </MenuItem>
                   {trainers?.map((trainer) => (
-                    <option key={trainer.id} value={trainer.id}>
-                      {trainer.firstName} {trainer.lastName} - {trainer.specialty}
-                    </option>
+                    <MenuItem key={trainer.id} value={trainer.id}>
+                      {trainer.firstName} {trainer.lastName} -{" "}
+                      {trainer.specialty}
+                    </MenuItem>
                   ))}
                 </TextField>
               </Grid>
 
               <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Durée (mois)"
-                  name="durationMonths"
-                  required
-                  inputProps={{ min: 1 }}
-                />
+                {selectedCategory === "Atelier" ? (
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Date de l'atelier"
+                    name="workshopDate"
+                    required
+                    InputLabelProps={{ shrink: true }}
+                    helperText="Date de la session (1 jour)"
+                  />
+                ) : (
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Durée (mois)"
+                    name="durationMonths"
+                    required
+                    inputProps={{ min: 1 }}
+                  />
+                )}
               </Grid>
 
               <Grid item xs={6}>
@@ -524,43 +639,59 @@ export default function Courses() {
                   fullWidth
                   type="number"
                   label={
-                    selectedCategory === 'Formation professionnelle'
-                      ? 'Prix de la formation (DA)'
-                      : selectedCategory === 'Soutien scolaire'
-                      ? 'Prix par mois (DA)'
-                      : selectedCategory === 'Développement personnel'
-                      ? 'Prix par séance (DA)'
-                      : 'Prix (DA)'
+                    selectedCategory === "Formation professionnelle"
+                      ? "Prix de la formation (DA)"
+                      : selectedCategory === "Soutien scolaire"
+                      ? "Prix par mois (DA)"
+                      : selectedCategory === "Atelier"
+                      ? "Prix par séance (DA)"
+                      : "Prix (DA)"
                   }
                   name="price"
                   required
                   inputProps={{ min: 0, step: 0.01 }}
                   helperText={
-                    selectedCategory === 'Formation professionnelle'
-                      ? 'Prix total de la formation'
-                      : selectedCategory === 'Soutien scolaire'
-                      ? 'Abonnement mensuel'
-                      : selectedCategory === 'Développement personnel'
-                      ? 'Prix pour une séance'
-                      : 'Montant à payer'
+                    selectedCategory === "Formation professionnelle"
+                      ? "Prix total de la formation"
+                      : selectedCategory === "Soutien scolaire"
+                      ? "Abonnement mensuel"
+                      : selectedCategory === "Atelier"
+                      ? "Prix pour une séance"
+                      : "Montant à payer"
                   }
                 />
               </Grid>
             </Grid>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => { setOpenCreate(false); setSelectedCategory('') }} disabled={createMutation.isPending}>
+            <Button
+              onClick={() => {
+                setOpenCreate(false);
+                setSelectedCategory("");
+              }}
+              disabled={createMutation.isPending}
+            >
               Annuler
             </Button>
-            <Button type="submit" variant="contained" color="primary" disabled={createMutation.isPending}>
-              {createMutation.isPending ? 'Création...' : 'Créer la formation'}
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              disabled={createMutation.isPending}
+            >
+              {createMutation.isPending ? "Création..." : "Créer la formation"}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
 
       {/* Dialog de confirmation de suppression */}
-      <Dialog open={openDelete} onClose={() => setOpenDelete(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={openDelete}
+        onClose={() => setOpenDelete(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>
           <Typography variant="h6" color="error">
             Confirmer la suppression
@@ -571,7 +702,7 @@ export default function Courses() {
             Êtes-vous sûr de vouloir supprimer cette formation ?
           </Typography>
           {selectedCourse && (
-            <Paper sx={{ p: 2, mt: 2, bgcolor: 'error.50' }}>
+            <Paper sx={{ p: 2, mt: 2, bgcolor: "error.50" }}>
               <Typography variant="subtitle1" fontWeight={600}>
                 {selectedCourse.title}
               </Typography>
@@ -581,23 +712,28 @@ export default function Courses() {
             </Paper>
           )}
           <Typography variant="body2" color="warning.main" sx={{ mt: 2 }}>
-            ⚠️ Cette action est irréversible. L'affichage de cette formation chez les étudiants inscrits sera affecté, mais les étudiants eux-mêmes ne seront pas supprimés.
+            ⚠️ Cette action est irréversible. L'affichage de cette formation
+            chez les étudiants inscrits sera affecté, mais les étudiants
+            eux-mêmes ne seront pas supprimés.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDelete(false)} disabled={deleteMutation.isPending}>
+          <Button
+            onClick={() => setOpenDelete(false)}
+            disabled={deleteMutation.isPending}
+          >
             Annuler
           </Button>
-          <Button 
-            variant="contained" 
-            color="error" 
+          <Button
+            variant="contained"
+            color="error"
             onClick={handleConfirmDelete}
             disabled={deleteMutation.isPending}
           >
-            {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+            {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
           </Button>
         </DialogActions>
       </Dialog>
-    </Box >
-  )
+    </Box>
+  );
 }
